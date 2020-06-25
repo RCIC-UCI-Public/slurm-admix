@@ -1,0 +1,27 @@
+!include rcic-package.yaml
+---
+- package: slurm-builder
+  name: slurm 
+  versions: !include versions.yaml
+  version: "{{versions.slurm}}"
+  vendor_source: https://download.schedmd.com/slurm/{{name}}-{{version}}.{{extension}}
+  extension: tar.bz2
+  no_src_dir: True
+  pkgname: "{{name}}-builder"
+  description: |
+     This is yaml2rpm wrapper build for SLURM. It uses rpmbuild directly on the slurm tarball
+     And then copies the built rpms. This RPM never needs to be installed.
+  build:
+    configure: echo configured in tarball build
+    modules: 
+      - cuda/{{versions.cuda}}
+    target: 
+    pkgmake: >
+      export CFLAGS="-I$$CUDA_HOME/targets/x86_64-linux/include/ $$CFLAGS"; 
+      export LDFLAGS="-L$$CUDA_HOME/targets/x86_64-linux/lib/stubs $$LDFLAGS"; 
+      echo $$CFLAGS;
+      echo $$LDFLAGS;
+      rpmbuild -ta {{name}}-{{version}}.{{extension}}
+  install:
+    makeinstall: find rpmbuild -name '*rpm' -exec mv {} $(REDHAT.RPMS)/$(ARCH)  \; -print
+

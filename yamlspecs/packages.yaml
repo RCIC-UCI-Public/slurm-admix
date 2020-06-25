@@ -1,0 +1,31 @@
+system:
+  - hwloc-devel 
+  - freeipmi-devel
+  - libibumad 
+  - libibmad-devel
+  - lua-devel
+  - mariadb-devel
+  - openssl-devel
+  - pam-devel
+  - numactl-devel
+  - readline-devel
+  - rrdtool-devel
+  - gtk2-devel
+  - gtk3-devel
+bootstrap:
+  - munge
+build:
+  - slurm-builder
+slurm_created_rpms:
+  - slurm 
+  - slurm-contribs 
+  - slurm-devel 
+  - slurm-example-configs
+  - slurm-pam_slurm
+  - slurm-slurmctld
+  - slurm-slurmd
+  - slurm-slurmdbd
+
+manifest:
+  - "{{bootstrap}}"
+  - "{{slurm_created_rpms}}"

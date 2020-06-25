@@ -1,0 +1,37 @@
+!include rcic-package.yaml
+---
+- package: munge 
+  name: munge 
+  versions: !include versions.yaml
+  version: "{{versions.munge}}"
+  vendor_source: https://github.com/dun/munge/archive/{{name}}-{{version}}.{{extension}}
+  src_dir: "{{name}}-{{name}}-{{version}}"
+  pkgname: "{{name}}"
+  root: "/usr"
+  description: |
+     MUNGE (MUNGE Uid \'N\' Gid Emporium) is an authentication service for creating and 
+     validating user credentials. It is designed to be highly scalable for use in an HPC 
+     cluster environment. It provides a portable API for encoding the user's identity into a 
+     tamper-proof credential that can be obtained by an untrusted client and forwarded by 
+     untrusted intermediaries within a security realm. Clients within this realm can create 
+     and validate credentials without the use of root privileges, reserved ports, or 
+     platform-specific methods.
+  build:
+    preconfigure: ./bootstrap
+    modules: 
+    target: 
+  install:
+    makeinstall: cd unix; $(MAKE) DESTDIR=$(ROOT) install
+  files:
+    - "{{root}}/bin/*"
+    - "{{root}}/sbin/*"
+    - "{{root}}/etc/*"
+    - "{{root}}/include/*"
+    - "{{root}}/lib/libmunge*"
+    - "{{root}}/lib/pkgconfig/*"
+    - "{{root}}/lib/systemd/system/*"
+    - "{{root}}/share/man/man*/*"
+
+  provides:
+    - munge-devel
+    - munge-libs
