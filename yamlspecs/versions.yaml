@@ -1,3 +1,4 @@
-munge: "0.5.14"
-slurm: "19.05.7"
-cuda: "10.1.243"
+---
+slurm: "22.05.2"
+slurm_tag:
+slurm_jobarchive: "1.0"

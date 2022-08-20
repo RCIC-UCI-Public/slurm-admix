@@ -1,0 +1,4 @@
+!include versions.yaml
+---
+slurm: "19.05.3"
+slurm_tag: "-2"

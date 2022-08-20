@@ -1,0 +1,4 @@
+!include versions.yaml
+---
+slurm: "20.11.9"
+slurm_tag:

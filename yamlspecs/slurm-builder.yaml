@@ -1,27 +1,30 @@
 !include rcic-package.yaml
+!include rpm.yaml
 ---
 - package: slurm-builder
   name: slurm 
+  extension: tar.bz2
   versions: !include versions.yaml
   version: "{{versions.slurm}}"
+  fullversion: "{{versions.slurm}}{{versions.slurm_tag}}"
   vendor_source: https://download.schedmd.com/slurm/{{name}}-{{version}}.{{extension}}
-  extension: tar.bz2
   no_src_dir: True
+  src_tarball: "{{name}}-{{fullversion}}.{{extension}}"
   pkgname: "{{name}}-builder"
   description: |
      This is yaml2rpm wrapper build for SLURM. It uses rpmbuild directly on the slurm tarball
      And then copies the built rpms. This RPM never needs to be installed.
   build:
     configure: echo configured in tarball build
+    configure_args:
     modules: 
-      - cuda/{{versions.cuda}}
     target: 
     pkgmake: >
-      export CFLAGS="-I$$CUDA_HOME/targets/x86_64-linux/include/ $$CFLAGS"; 
-      export LDFLAGS="-L$$CUDA_HOME/targets/x86_64-linux/lib/stubs $$LDFLAGS"; 
-      echo $$CFLAGS;
-      echo $$LDFLAGS;
-      rpmbuild -ta {{name}}-{{version}}.{{extension}}
+      echo "start RPMBUILD";
+      unset MAKEFLAGS;
+      rpmbuild --with lua --with hwloc --with mysql -ta {{src_tarball}}
   install:
     makeinstall: find rpmbuild -name '*rpm' -exec mv {} $(REDHAT.RPMS)/$(ARCH)  \; -print
 
+# NOTE: slurm_tag is only needed for old v.19.05 as rpm buidl process looks for a specific
+# release ta 19.05.3-2. Once we get rid of the v 19.05, can remove it

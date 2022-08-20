@@ -12,8 +12,10 @@ system:
   - rrdtool-devel
   - gtk2-devel
   - gtk3-devel
-bootstrap:
   - munge
+  - munge-devel
+bootstrap:
+  - slurm-jobarchive
 build:
   - slurm-builder
 slurm_created_rpms:
@@ -25,7 +27,9 @@ slurm_created_rpms:
   - slurm-slurmctld
   - slurm-slurmd
   - slurm-slurmdbd
-
 manifest:
   - "{{bootstrap}}"
   - "{{slurm_created_rpms}}"
+sets:
+  - "19"
+  - "20"
