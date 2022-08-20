@@ -1,0 +1,28 @@
+!include rcic-package.yaml
+!include rpm.yaml
+---
+- package: slurm-jobarhive 
+  versions: !include versions.yaml
+  release: 1
+  name: slurm-jobarchive
+  version: "{{versions.slurm_jobarchive}}"
+  vendor_source: 
+  description: |
+    Slurmjobarchive provides archiving of job scripts and run environment as they are 
+    submitted to a permanent archive. The original code  was downloaded from
+    https://github.com/nauhpc/job_archive and patches applied. Intened to run on a
+    slurm headnode as a service.
+  parent: "/usr"
+  root: "{{parent}}"
+  build:
+    pkgmake: make
+    modules: 
+  install:
+    makeinstall: >
+      mkdir -p $(ROOT){{root}}/bin;
+      mkdir -p $(ROOT){{root}}/lib/systemd/system;
+      $(INSTALL) -m 755 {{name}} $(ROOT){{root}}/bin;
+      $(INSTALL) -m 644 {{name}}.service $(ROOT){{root}}/lib/systemd/system
+  files:
+    - /usr/bin/{{name}}
+    - /usr/lib/systemd/system/{{name}}.service
