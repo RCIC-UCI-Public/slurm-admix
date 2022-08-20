@@ -79,13 +79,16 @@ The old repo is checked out from https://github.com/jcftang/slurm-bank.git
 commit 60dbd9097865e0cbac224d007bee66f0c68d86a5 (HEAD -> master, origin/master, origin/HEAD)
 Date:   Fri Oct 26 13:35:35 2018 +0800
 
-Create a distro file and assigne a version specified in the repo's VERSION file.
+Create a distro file and assign a version specified in the repo's VERSION file.
 
 ```bash
 git clone https://github.com/jcftang/slurm-bank.git
 vim slurm-bank/slurm-bank.spec
 mv slurm-bank/ slurm-bank-1.4.2
-tar czf slurm-bank-1.4.2.tar.gz --exclude slurm-bank-1.4.2/.git --exclude slurm-bank-1.4.2/.gitignore slurm-bank-1.4.2/
+tar czf slurm-bank-1.4.2.tar.gz \
+        --exclude slurm-bank-1.4.2/.git \
+        --exclude slurm-bank-1.4.2/.gitignore \
+        slurm-bank-1.4.2/
 mv slurm-bank-1.4.2.tar.gz ../sources
 ```
 
