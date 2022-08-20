@@ -43,15 +43,20 @@ using the distro spec file.
 
 ## slurm-jobarhive 
 
-This info is in the distro README file
+Create an RPM with a slurm job archiver binary and a service file 
+
+This following info is added to the distro README (new) file:
 
 Orioginal code is in https://github.com/nauhpc/job_archive
 A version as of commit 2725c0432e8fc24d42734bade82a9dd58144e16f
 was checked out on slurm headnode, compiled and used on (centOS7) HPC3. 
+There were a few edits to the source cpp file. 
 
 The following variables are hard-coded in the job_archive.cpp per slurm headnode configiuration:
 string srcSpoolHashPath  - local slurm spool directory
 string targDestPath      - local submit scipts archiveng direcotry
+
+Copy source files from slurm-i14, apply patches, crete slurm-jobarchive-1.0.tar.gz
 
 Changelog 
 
