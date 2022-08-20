@@ -2,7 +2,6 @@ system:
   - hwloc-devel 
   - freeipmi-devel
   - libibumad 
-  - libibmad-devel
   - lua-devel
   - mariadb-devel
   - openssl-devel
