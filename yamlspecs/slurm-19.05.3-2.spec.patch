@@ -1,0 +1,24 @@
+--- slurm.spec.orig	2022-08-19 17:07:07.119212619 -0700
++++ slurm.spec	2022-08-19 17:08:24.161160459 -0700
+@@ -15,6 +15,12 @@
+ %global slurm_source_dir %{name}-%{version}-%{rel}
+ %endif
+ 
++## Fix for unresolved symbol
++## https://groups.google.com/g/slurm-users/c/575AKcVl1kU
++%undefine _hardened_build
++%global _hardened_cflags "-Wl,-z,lazy"
++%global _hardened_ldflags "-Wl,-z,lazy"
++
+ Source:		%{slurm_source_dir}.tar.bz2
+ 
+ # build options		.rpmmacros options	change to default action
+@@ -62,7 +68,7 @@
+ %{?systemd_requires}
+ BuildRequires: systemd
+ BuildRequires: munge-devel munge-libs
+-BuildRequires: python
++BuildRequires: python3
+ BuildRequires: readline-devel
+ Obsoletes: slurm-lua slurm-munge slurm-plugins
+ 
