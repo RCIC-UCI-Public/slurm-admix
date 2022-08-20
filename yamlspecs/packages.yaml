@@ -15,6 +15,7 @@ system:
   - munge-devel
 bootstrap:
   - slurm-jobarchive
+  - slurm-bank
 build:
   - slurm-builder
 slurm_created_rpms:

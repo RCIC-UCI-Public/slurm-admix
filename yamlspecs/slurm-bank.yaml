@@ -1,0 +1,26 @@
+!include rcic-package.yaml
+!include rpm.yaml
+---
+- package: slurm-bank-builder
+  name: slurm-bank 
+  versions: !include versions.yaml
+  version: "{{versions.slurm_bank}}"
+  vendor_source: https://github.com/jcftang/slurm-bank.git
+  no_src_dir: True
+  pkgname: "{{name}}-builder"
+  description: |
+     This is yaml2rpm wrapper build for SLURM bank. It uses rpmbuild directly on the tarball
+     And then copies the built {{name}} rpm. This RPM ({{package}}) never needs to be installed.
+     SLURM Bank, a collection of wrapper scripts to give slurm GOLD like
+     capabilities for managing resources.
+  build:
+    configure: echo configured in tarball build
+    configure_args:
+    modules: 
+    target: 
+    pkgmake: >
+      echo "start RPMBUILD";
+      unset MAKEFLAGS;
+      rpmbuild -ta {{src_tarball}}
+  install:
+    makeinstall: find rpmbuild -name '*rpm' -exec mv {} $(REDHAT.RPMS)/$(ARCH)  \; -print
