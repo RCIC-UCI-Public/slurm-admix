@@ -27,6 +27,8 @@ slurm_created_rpms:
   - slurm-slurmctld
   - slurm-slurmd
   - slurm-slurmdbd
+  - slurm-libpmi
+  - slurm-perlapi
 manifest:
   - "{{bootstrap}}"
   - "{{slurm_created_rpms}}"
