@@ -1,5 +1,5 @@
 ---
-slurm: "22.05.2"
+slurm: "22.05.3"
 slurm_tag:
 slurm_jobarchive: "1.0"
 slurm_bank: "1.4.2"
