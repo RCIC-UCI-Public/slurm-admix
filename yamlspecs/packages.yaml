@@ -13,9 +13,20 @@ system:
   - gtk3-devel
   - munge
   - munge-devel
+  - "{{system_forpython}}"
+system_forpython:
+  - openblas
+  - python3-numpy
+  - python3-PyMySQL
 bootstrap:
   - slurm-jobarchive
   - slurm-bank
+  - cython
+  - "{{buildpython}}"
+buildpython:
+  - pandas
+  - clustershell
+  - mysql-connector
 build:
   - slurm-builder
 slurm_created_rpms:
@@ -31,6 +42,7 @@ slurm_created_rpms:
   - slurm-perlapi
 manifest:
   - "{{bootstrap}}"
+  - "{{system_forpython}}"
   - "{{slurm_created_rpms}}"
 sets:
   - "19"

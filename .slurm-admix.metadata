@@ -6,3 +6,7 @@ b72e2c3b4270683cbb31b10f4bef384057376a34  sources/slurm-22.05.2.tar.bz2 1mwuv4fQ
 55e9a1a1d2ddb67b119c2900982c908ba2846c1e  sources/slurm-22.05.3.tar.bz2 1IUS1AyJpa11TbPRQd9OZbo117m3BSLve
 d5bb77ea07fcfb423f61cd5a5e06de8e11f2a366  sources/slurm-jobarchive-1.0.tar.gz 1WrpLIxtXORPHhCKPMBVLHjMoDWouD-kz
 4c2c2a395bc18c666d7709e11700d204ff259d26  sources/slurm-bank-1.4.2.tar.gz 1JC4KDtra016oP7hHVqM77xALi6iBnQOQ
+665eb4337b4da06172fc7edca0b54cb27fb46b4f  sources/cython-0.29.15.tar.gz 1PTmTxeuDe5YU_BboGPwqUutX2Gy4YDzQ
+ddeff2559eb4e66c2fa88d245c9c875df455acb8  sources/pandas-1.0.1.tar.gz 1lziZsEv6xncQ1UaAxyf5fo_0JWiHvWrK
+18c88bc15ade9c0de364a74d191aade06f115fde  sources/mysql-connector-2.2.9.tar.gz 1odOT_4ZAp1qonDjgxUlJiZIHme_PkqqE
+6b610d6ae614242daa0798ceb63525ec5e86f35c  sources/clustershell-1.8.4.tar.gz 1JA4GCeHdk08uFtpR2lBaA9ZsMQmP6Y4t

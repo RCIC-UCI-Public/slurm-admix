@@ -1,0 +1,14 @@
+!include pymodule.yaml
+---
+- package: ClusterShell
+  name: clustershell
+  version: "{{versions.clustershell}}"
+  vendor_source: https://files.pythonhosted.org/packages/08/5a/ba0bfdcef8b129ac0fefa575b8e209d1f1370cead55657472b1f15d3d497/{{package}}-{{version}}.{{extension}}
+  root: /usr/lib/python{{pkg_defaults.site.python_sys}}
+  src_dir: "{{package}}-{{version}}"
+  description: |
+    ClusterShell {{version}} library and tools
+  files:
+    - "{{root}}"
+    - /etc/{{name}}
+    - /usr/bin/*

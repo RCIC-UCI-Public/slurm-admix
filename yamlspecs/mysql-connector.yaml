@@ -1,0 +1,11 @@
+!include pymodule.yaml
+---
+- package: mysql-connector
+  name: mysql-connector
+  version: "{{versions.mysql_connector}}"
+  vendor_source: https://files.pythonhosted.org/packages/28/04/e40098f3730e75bbe36a338926f566ea803550a34fb50535499f4fc4787a/{{name}}-{{version}}.{{extension}}
+  root: /usr/lib/python{{pkg_defaults.site.python_sys}}
+  description: |
+    MySQL driver written in Python {{version}}
+  files:
+    - "{{root}}"

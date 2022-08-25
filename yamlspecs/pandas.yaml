@@ -1,0 +1,15 @@
+!include pymodule.yaml
+---
+- package: pandas
+  name: pandas
+  version: "{{versions.pandas}}"
+  vendor_source: https://github.com/pandas-dev/pandas/archive/v{{version}}.{{extension}}
+  description: |
+    Pandas is a Python package providing fast, flexible, and expressive data structures
+    designed to make working with structured (tabular, multidimensional, potentially
+    heterogeneous) and time series data both easy and intuitive.
+  pymod_requires:
+    - python{{python_major}}-numpy
+    - python{{python_major}}-six
+    - python{{python_major}}-pytz
+    - python{{python_major}}-dateutil
