@@ -8,7 +8,11 @@
   src_dir: "{{package}}-{{version}}"
   description: |
     ClusterShell {{version}} library and tools
+  build: 
+    pkgmake: >
+      mv setup.py setup.py.orig;
+      sed '45,56d' setup.py.orig > setup.py;
+      python{{python_major}} ./setup.py build
   files:
     - "{{root}}"
-    - /etc/{{name}}
     - /usr/bin/*
