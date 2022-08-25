@@ -17,16 +17,14 @@ system:
 system_forpython:
   - openblas
   - python3-numpy
-  - python3-PyMySQL
 bootstrap:
   - slurm-jobarchive
   - slurm-bank
-  - cython
   - "{{buildpython}}"
 buildpython:
+  - cython
   - pandas
   - clustershell
-  - mysql-connector
 build:
   - slurm-builder
 slurm_created_rpms:
