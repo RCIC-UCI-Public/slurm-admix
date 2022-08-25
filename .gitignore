@@ -1,6 +1,7 @@
 sources/*
 BUILD/
 RPMS/
+SRPMS/
 SOURCES/
 SPECS/
 cache/
@@ -8,3 +9,4 @@ localrepo/
 yamlspecs/tmpbuild/
 yum.*
 .rpmmacros
+*.pkg
