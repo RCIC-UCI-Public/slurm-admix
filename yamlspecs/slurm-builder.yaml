@@ -22,9 +22,9 @@
     pkgmake: >
       echo "start RPMBUILD";
       unset MAKEFLAGS;
-      rpmbuild --with lua --with hwloc --with mysql -ta {{src_tarball}}
+      rpmbuild --define "vendor {{pkg_defaults.vendor}}" --with lua --with hwloc --with mysql -ta {{src_tarball}}
   install:
     makeinstall: find rpmbuild -name '*rpm' -exec mv {} $(REDHAT.RPMS)/$(ARCH)  \; -print
 
-# NOTE: slurm_tag is only needed for old v.19.05 as rpm buidl process looks for a specific
-# release ta 19.05.3-2. Once we get rid of the v 19.05, can remove it
+# NOTE: slurm_tag is only needed for old v.19.05 as rpm build process looks for a specific
+# release tag 19.05.3-2. Once we get rid of the v 19.05, can remove it
