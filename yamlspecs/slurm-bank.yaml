@@ -6,8 +6,11 @@
   versions: !include versions.yaml
   version: "{{versions.slurm_bank}}"
   vendor_source: https://github.com/jcftang/slurm-bank.git
+  release: 2
   no_src_dir: True
   pkgname: "{{name}}-builder"
+  addfile: "{{name}}.patch"
+  tardir: "{{name}}-{{version}}"
   description: |
      This is yaml2rpm wrapper build for SLURM bank. It uses rpmbuild directly on the tarball
      And then copies the built {{name}} rpm. This RPM ({{package}}) never needs to be installed.
@@ -17,6 +20,11 @@
     configure: echo configured in tarball build
     configure_args:
     modules: 
+    # Unzip the the tarball, patch it, rezip it
+    preconfigure: >
+       tar xzf {{src_tarball}};
+       (cd {{tardir}}; patch -p 1 < ../{{name}}.patch);
+       tar czf {{src_tarball}} {{tardir}}
     target: 
     pkgmake: >
       echo "start RPMBUILD";
