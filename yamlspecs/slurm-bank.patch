@@ -1,79 +1,65 @@
-diff --recursive '--context=5' slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2-new/slurm-bank.spec
-*** slurm-bank-1.4.2/slurm-bank.spec	2022-08-20 15:11:48.000000000 -0700
---- slurm-bank-1.4.2-new/slurm-bank.spec	2023-02-16 10:10:02.003434446 -0800
+diff '--context=6' --recursive slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sbank-balance.pl
+*** slurm-bank-1.4.2/src/_sbank-balance.pl	2023-02-16 10:14:25.605710561 -0800
+--- slurm-bank-1.4.2-new/src/_sbank-balance.pl	2023-02-16 14:10:51.713056672 -0800
 ***************
-*** 1,10 ****
-  # Pass --with docs to rpmbuild if you want the HTML documentation (requires ikiwiki)
+*** 435,461 ****
+  # run sacctmgr to find all Account limits from the list of 
+  # Assocations
+  # note that gives us the current active Accounts, which is useful
+  # because sreport will show usage from deleted accounts
+  #####################################################################
   
-  Name:           slurm-bank
-  Version:        1.4.2
-! Release:        1%{?dist}
-  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
-  
-  Group:          System
-  License:        GPLv2
-  URL:            http://www.tchpc.tcd.ie/
---- 1,10 ----
-  # Pass --with docs to rpmbuild if you want the HTML documentation (requires ikiwiki)
-  
-  Name:           slurm-bank
-  Version:        1.4.2
-! Release:        2%{?dist}
-  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
-  
-  Group:          System
-  License:        GPLv2
-  URL:            http://www.tchpc.tcd.ie/
-diff --recursive '--context=5' slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sbank-balance.pl
-*** slurm-bank-1.4.2/src/_sbank-balance.pl	2022-08-20 15:03:51.000000000 -0700
---- slurm-bank-1.4.2-new/src/_sbank-balance.pl	2023-02-16 10:11:24.930151518 -0800
-***************
-*** 91,101 ****
-  		printf "%-10s %9s | %14s %9s\n",
-  			"User", "Usage", "Account", "Usage";
-  		printf "%10s %9s + %14s %9s\n",
-  			"-"x10, "-"x9, "-"x14, "-"x9;
-  	} else {
-! 		printf "%-10s %9s | %14s %9s | %13s %9s (CPU hrs)\n",
-  			"User", "Usage", "Account", "Usage", "Account Limit", "Available";
-  		printf "%10s %9s + %14s %9s + %13s %9s\n",
-  			"-"x10, "-"x9, "-"x14, "-"x9, "-"x13, "-"x9;
-  	}
-  }
---- 91,101 ----
-  		printf "%-10s %9s | %14s %9s\n",
-  			"User", "Usage", "Account", "Usage";
-  		printf "%10s %9s + %14s %9s\n",
-  			"-"x10, "-"x9, "-"x14, "-"x9;
-  	} else {
-! 		printf "%-10s %9s | %14s %9s | %13s %9s (SUs)\n",
-  			"User", "Usage", "Account", "Usage", "Account Limit", "Available";
-  		printf "%10s %9s + %14s %9s + %13s %9s\n",
-  			"-"x10, "-"x9, "-"x14, "-"x9, "-"x13, "-"x9;
-  	}
-  }
-***************
-*** 444,454 ****
+! open (SACCTMGR, "sacctmgr list association cluster=$clustername format='Account,GrpCPUMins'" .
+  		" -p -n |")
+  	or die "$0: Unable to run sacctmgr: $!\n";
   
   # GrpCPUMins are not in 'sreport'
   while (<SACCTMGR>) {
-  	# format is "acct_string|nnnn|" where nnnn is the number of GrpCPUMins allocated
-  	if (/^([^|]+)\|([^|]*)/) {
-! 		if ($2 ne "") {
-  			$acc_limits{"\U$1"} = sprintf("%.0f", $2); # normalise account names to uppercase
-  		} elsif (!exists($acc_limits{"\U$1"})) {
-  			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
-  			$acc_limits{"\U$1"} = 0; # normalise account names to uppercase
-  		}
---- 444,454 ----
-  
-  # GrpCPUMins are not in 'sreport'
-  while (<SACCTMGR>) {
-  	# format is "acct_string|nnnn|" where nnnn is the number of GrpCPUMins allocated
-  	if (/^([^|]+)\|([^|]*)/) {
+! 	# format is "acct_string|nnnn|" where nnnn is the number of GrpCPUMins allocated
+! 	if (/^([^|]+)\|([^|]*)/) {
 ! 		if ($2 ne "" && !exists($acc_limits{"\U$1"})) {
-  			$acc_limits{"\U$1"} = sprintf("%.0f", $2); # normalise account names to uppercase
-  		} elsif (!exists($acc_limits{"\U$1"})) {
-  			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
-  			$acc_limits{"\U$1"} = 0; # normalise account names to uppercase
-  		}
+! 			$acc_limits{"\U$1"} = sprintf("%.0f", $2); # normalise account names to uppercase
+! 		} elsif (!exists($acc_limits{"\U$1"})) {
+! 			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
+! 			$acc_limits{"\U$1"} = 0; # normalise account names to uppercase
+! 		}
+! 	}
+  
+  }
+  
+  close(SACCTMGR);
+  
+  
+--- 435,466 ----
+  # run sacctmgr to find all Account limits from the list of 
+  # Assocations
+  # note that gives us the current active Accounts, which is useful
+  # because sreport will show usage from deleted accounts
+  #####################################################################
+  
+! open (SACCTMGR, "sacctmgr list association cluster=$clustername format='Account,User,GrpCPUMins'" .
+  		" -p -n |")
+  	or die "$0: Unable to run sacctmgr: $!\n";
+  
+  # GrpCPUMins are not in 'sreport'
+  while (<SACCTMGR>) {
+!         # format is "acct_string|user|nnnn|" where nnnn is the number of GrpCPUMins allocated
+!         my @fields=split('\|',$_);
+!         my $acct = $fields[0];
+!         my $user = $fields[1];
+!         my $sus = $fields[2];
+!         if ($#fields == 3) {
+!                 # want just the account allocation, limits on users are ignored
+!                 if ($sus ne "" && $user eq "") {
+!                         $acc_limits{"\U$acct"} = sprintf("%.0f", $sus); # normalise account names to uppercase
+!                 } elsif (!exists($acc_limits{"\U$acct"})) {
+!                         # store all accounts, even those without GrpCPUMins allocated, so we can report usage
+!                         $acc_limits{"\U$acct"} = 0; # normalise account names to uppercase
+!                 }
+!         }
+  
+  }
+  
+  close(SACCTMGR);
+  
+  
