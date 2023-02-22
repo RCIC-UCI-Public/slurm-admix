@@ -1,8 +1,340 @@
-diff '--context=6' --recursive slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sbank-balance.pl
-*** slurm-bank-1.4.2/src/_sbank-balance.pl	2023-02-16 10:14:25.605710561 -0800
---- slurm-bank-1.4.2-new/src/_sbank-balance.pl	2023-02-16 14:10:51.713056672 -0800
+diff '--context=6' --recursive slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2-new/slurm-bank.spec
+*** slurm-bank-1.4.2/slurm-bank.spec	2022-08-20 15:11:48.000000000 -0700
+--- slurm-bank-1.4.2-new/slurm-bank.spec	2023-02-22 11:12:04.952761141 -0800
 ***************
-*** 435,461 ****
+*** 1,11 ****
+  # Pass --with docs to rpmbuild if you want the HTML documentation (requires ikiwiki)
+  
+  Name:           slurm-bank
+  Version:        1.4.2
+! Release:        1%{?dist}
+  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
+  
+  Group:          System
+  License:        GPLv2
+  URL:            http://www.tchpc.tcd.ie/
+  Source0:        slurm-bank-%{version}.tar.gz
+--- 1,11 ----
+  # Pass --with docs to rpmbuild if you want the HTML documentation (requires ikiwiki)
+  
+  Name:           slurm-bank
+  Version:        1.4.2
+! Release:        3%{?dist}
+  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
+  
+  Group:          System
+  License:        GPLv2
+  URL:            http://www.tchpc.tcd.ie/
+  Source0:        slurm-bank-%{version}.tar.gz
+***************
+*** 22,33 ****
+--- 22,34 ----
+  
+  With the scripts we are able to provide a simple banking system where we
+  can deposit hours to an account. Users are associated to these accounts
+  from which they can use to run jobs. If users do not have an account or
+  if they do not have hours in their account then they cannot run jobs.
+  
++ This version has been patched by RCIC @ UCI
+  %prep
+  %setup -q
+  
+  %build
+  make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS" \
+  	%{path_settings} \
+diff '--context=6' --recursive slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sbank-balance.pl
+*** slurm-bank-1.4.2/src/_sbank-balance.pl	2022-08-20 15:03:51.000000000 -0700
+--- slurm-bank-1.4.2-new/src/_sbank-balance.pl	2023-02-22 11:11:26.817414909 -0800
+***************
+*** 90,102 ****
+  		printf "%s\n", "-"x70;
+  		printf "%-10s %9s | %14s %9s\n",
+  			"User", "Usage", "Account", "Usage";
+  		printf "%10s %9s + %14s %9s\n",
+  			"-"x10, "-"x9, "-"x14, "-"x9;
+  	} else {
+! 		printf "%-10s %9s | %14s %9s | %13s %9s (CPU hrs)\n",
+  			"User", "Usage", "Account", "Usage", "Account Limit", "Available";
+  		printf "%10s %9s + %14s %9s + %13s %9s\n",
+  			"-"x10, "-"x9, "-"x14, "-"x9, "-"x13, "-"x9;
+  	}
+  }
+  
+--- 90,102 ----
+  		printf "%s\n", "-"x70;
+  		printf "%-10s %9s | %14s %9s\n",
+  			"User", "Usage", "Account", "Usage";
+  		printf "%10s %9s + %14s %9s\n",
+  			"-"x10, "-"x9, "-"x14, "-"x9;
+  	} else {
+! 		printf "%-10s %9s | %14s %9s | %13s %9s (SUs)\n",
+  			"User", "Usage", "Account", "Usage", "Account Limit", "Available";
+  		printf "%10s %9s + %14s %9s + %13s %9s\n",
+  			"-"x10, "-"x9, "-"x14, "-"x9, "-"x13, "-"x9;
+  	}
+  }
+  
+***************
+*** 106,117 ****
+--- 106,119 ----
+  	my $user_usage = shift;
+  	my $acc = shift;
+  	my $acc_usage = shift;
+  	my $acc_limit = shift;
+  	my $use_sreport = shift;
+  
++         # printf  "XXX Printing %s %d %d\n",$thisuser,$acc_limit,$acc_usage;
++ 
+  	if ($use_sreport) {
+  		printf "%-10s %9s | %14s %9s\n",
+  			$thisuser, fmt_mins_as_hrs($user_usage),
+  			$acc, fmt_mins_as_hrs($acc_usage);
+  	} else {
+  		printf "%-10s %9s | %14s %9s | %13s %9s\n",
+***************
+*** 129,141 ****
+  	my $include_root   = shift;
+  	my $use_sreport    = shift;
+  
+  	my @account_list = sort keys %user_usage_per_acc;
+  	my $first_iter   = 1;
+  	my $rawusage;
+! 
+  	if ($include_root) {
+  		# instead of a purely sorted list, show the 'ROOT' account first (assuming
+  		# that the account is actually called 'ROOT')
+  		my $root_acc = 'ROOT';
+  
+  		# linear search (even though the list is sorted and we could do a binary)
+--- 131,145 ----
+  	my $include_root   = shift;
+  	my $use_sreport    = shift;
+  
+  	my @account_list = sort keys %user_usage_per_acc;
+  	my $first_iter   = 1;
+  	my $rawusage;
+!         # specific user usage and unformatted user name
+!         my $userusage;
+!         my $user_ufmt;  
+  	if ($include_root) {
+  		# instead of a purely sorted list, show the 'ROOT' account first (assuming
+  		# that the account is actually called 'ROOT')
+  		my $root_acc = 'ROOT';
+  
+  		# linear search (even though the list is sorted and we could do a binary)
+***************
+*** 167,193 ****
+  			## stop warnings if this account doesn't have a limit
+  			#if (! exists($acc_limits{$account})) {
+  			#	$acc_limits{$account} = 0;
+  			#}
+  
+  			# stop warnings if this account doesn't have any usage
+! 			if (! exists($acc_usage{$account})) {
+  				$acc_usage{$account} = 0;
+  			}
+  
+  			#print_values($thisuser, $user_usage{$account}, $account, $acc_usage{$account}, $acc_limits{$account});
+! 			print_values($thisuser, $user_usage_per_acc{$account}{$thisuser}, $account, $acc_usage{$account}, $acc_limits{$account}, $use_sreport);
+  
+  		} else {
+  			# else loop over the users
+  
+  			foreach my $user (sort keys %{ $user_usage_per_acc{$account} } ) {
+  				# then each subsequent line is an individual user
+  				# (already in alphabetical order)
+  
+  				$rawusage = $user_usage_per_acc{$account}{$user};
+  
+  				# highlight current user
+  				if ($multiple_users && $user eq $thisuser) {
+  					$user = "$user *";
+  				}
+  
+--- 171,205 ----
+  			## stop warnings if this account doesn't have a limit
+  			#if (! exists($acc_limits{$account})) {
+  			#	$acc_limits{$account} = 0;
+  			#}
+  
+  			# stop warnings if this account doesn't have any usage
+! 			if (! exists($acc_usage{$account}{$thisuser})) {
+  				$acc_usage{$account} = 0;
+  			}
+  
+  			#print_values($thisuser, $user_usage{$account}, $account, $acc_usage{$account}, $acc_limits{$account});
+!                         # Do we use the total account usage or the user-specific usage.
+!                         # printf  "XXX Printing %s %d %d\n",$user,$acc_limits{$account}{$user},$acc_usage{$account};
+!                         if ( $acc_limits{$account}{$user} == $acc_limits{$account}{$account} ) {
+!                             $userusage = $acc_usage{$account};
+!                         } else {
+!                             $userusage = $user_usage_per_acc{$account}{$user};
+!                         }
+! 			print_values($thisuser, $user_usage_per_acc{$account}{$thisuser}, $account, $userusage, $acc_limits{$account}{$thisuser}, $use_sreport);
+  
+  		} else {
+  			# else loop over the users
+  
+  			foreach my $user (sort keys %{ $user_usage_per_acc{$account} } ) {
+  				# then each subsequent line is an individual user
+  				# (already in alphabetical order)
+  
+  				$rawusage = $user_usage_per_acc{$account}{$user};
++                                 $user_ufmt = $user;
+  
+  				# highlight current user
+  				if ($multiple_users && $user eq $thisuser) {
+  					$user = "$user *";
+  				}
+  
+***************
+*** 198,210 ****
+  
+  				# stop warnings if this account doesn't have any usage
+  				if (! exists($acc_usage{$account})) {
+  					$acc_usage{$account} = 0;
+  				}
+  
+! 				print_values($user, sprintf("%.0f", $rawusage), $account, $acc_usage{$account}, $acc_limits{$account}, $use_sreport);
+  			}
+  		}
+  	}
+  }
+  
+  # query sacctmgr to find the list of users and accounts
+--- 210,229 ----
+  
+  				# stop warnings if this account doesn't have any usage
+  				if (! exists($acc_usage{$account})) {
+  					$acc_usage{$account} = 0;
+  				}
+  
+!                                 # Do we use the total account usage or the user-specific usage.
+!                                 # printf  "XXX Printing %s %d %d\n",$user_ufmt,$acc_limits{$account}{$user_ufmt},$acc_usage{$account};
+!                                 if ( $acc_limits{$account}{$user_ufmt} == $acc_limits{$account}{$account} ) {
+!                                      $userusage = $acc_usage{$account};
+!                                 } else {
+!                                      $userusage = $user_usage_per_acc{$account}{$user_ufmt};
+!                                 }
+! 				print_values($user, sprintf("%.0f", $rawusage), $account, $userusage, $acc_limits{$account}{$user_ufmt}, $use_sreport);
+  			}
+  		}
+  	}
+  }
+  
+  # query sacctmgr to find the list of users and accounts
+***************
+*** 277,302 ****
+  		# only show outputs for accounts we're part of
+  		if (/^\s*[^|]+\|([^|]*)\|([^|]*)\|[^|]*\|([^|]*)/) {
+  			$account      = "\U$1"; # normalise account names to uppercase
+  			$user         = $2;
+  			$rawusage     = $3;
+  
+! 			if (exists( $acc_limits{$account} ) && $user eq "") {
+  				# the first line is the overall account usage
+  				$acc_usage{$account} = $rawusage;
+  
+  				# if we only want the unformatted balance, then we're done
+  				if ($balance_only) {
+  					last;
+  				}
+  
+! 			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account} )) {
+  				# only reporting on the given user, not on all users in the account
+  				$user_usage_per_acc{$account}{$thisuser} = $rawusage;
+  
+! 			} elsif (exists( $acc_limits{$account} )) {
+  				# otherwise report on all users in the account
+  				$user_usage_per_acc{$account}{$user} = $rawusage;
+  
+  			}
+  		}
+  	}
+--- 296,321 ----
+  		# only show outputs for accounts we're part of
+  		if (/^\s*[^|]+\|([^|]*)\|([^|]*)\|[^|]*\|([^|]*)/) {
+  			$account      = "\U$1"; # normalise account names to uppercase
+  			$user         = $2;
+  			$rawusage     = $3;
+  
+! 			if (exists( $acc_limits{$account}{$account} ) && $user eq "") {
+  				# the first line is the overall account usage
+  				$acc_usage{$account} = $rawusage;
+  
+  				# if we only want the unformatted balance, then we're done
+  				if ($balance_only) {
+  					last;
+  				}
+  
+! 			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account}{$thisuser} )) {
+  				# only reporting on the given user, not on all users in the account
+  				$user_usage_per_acc{$account}{$thisuser} = $rawusage;
+  
+! 			} elsif (exists( $acc_limits{$account}{$account} )) {
+  				# otherwise report on all users in the account
+  				$user_usage_per_acc{$account}{$user} = $rawusage;
+  
+  			}
+  		}
+  	}
+***************
+*** 329,354 ****
+  		# only show outputs for accounts we're part of
+  		if (/^\s*([^|]+)\|([^|]*)\|[^|]*\|[^|]*\|([^|]*)/) {
+  			$account      = "\U$1"; # normalise account names to uppercase
+  			$user         = $2;
+  			$rawusage     = $3;
+  
+! 			if (exists( $acc_limits{$account} ) && $user eq "") {
+  				# the first line is the overall account usage
+  				$acc_usage{$account} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+  
+  				# if we only want the unformatted balance, then we're done
+  				if ($balance_only) {
+  					last;
+  				}
+  
+! 			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account} )) {
+  				# only reporting on the given user, not on all users in the account
+  				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+  
+! 			} elsif (exists( $acc_limits{$account} )) {
+  				# otherwise report on all users in the account
+  				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+  
+  			}
+  		}
+  	}
+--- 348,373 ----
+  		# only show outputs for accounts we're part of
+  		if (/^\s*([^|]+)\|([^|]*)\|[^|]*\|[^|]*\|([^|]*)/) {
+  			$account      = "\U$1"; # normalise account names to uppercase
+  			$user         = $2;
+  			$rawusage     = $3;
+  
+! 			if (exists( $acc_limits{$account}{$account} ) && $user eq "") {
+  				# the first line is the overall account usage
+  				$acc_usage{$account} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+  
+  				# if we only want the unformatted balance, then we're done
+  				if ($balance_only) {
+  					last;
+  				}
+  
+! 			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account}{$thisuser} )) {
+  				# only reporting on the given user, not on all users in the account
+  				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+  
+! 			} elsif (exists( $acc_limits{$account}{$account} )) {
+  				# otherwise report on all users in the account
+  				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+  
+  			}
+  		}
+  	}
+***************
+*** 435,459 ****
   # run sacctmgr to find all Account limits from the list of 
   # Assocations
   # note that gives us the current active Accounts, which is useful
@@ -17,20 +349,18 @@ diff '--context=6' --recursive slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank
   while (<SACCTMGR>) {
 ! 	# format is "acct_string|nnnn|" where nnnn is the number of GrpCPUMins allocated
 ! 	if (/^([^|]+)\|([^|]*)/) {
-! 		if ($2 ne "" && !exists($acc_limits{"\U$1"})) {
+! 		if ($2 ne "") {
 ! 			$acc_limits{"\U$1"} = sprintf("%.0f", $2); # normalise account names to uppercase
 ! 		} elsif (!exists($acc_limits{"\U$1"})) {
-! 			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
+  			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
 ! 			$acc_limits{"\U$1"} = 0; # normalise account names to uppercase
-! 		}
-! 	}
+  		}
+  	}
   
   }
   
   close(SACCTMGR);
-  
-  
---- 435,466 ----
+--- 454,490 ----
   # run sacctmgr to find all Account limits from the list of 
   # Assocations
   # note that gives us the current active Accounts, which is useful
@@ -43,23 +373,110 @@ diff '--context=6' --recursive slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank
   
   # GrpCPUMins are not in 'sreport'
   while (<SACCTMGR>) {
-!         # format is "acct_string|user|nnnn|" where nnnn is the number of GrpCPUMins allocated
+! 	# format is "acct_string|user|nnnn|" where nnnn is the number of GrpCPUMins allocated
 !         my @fields=split('\|',$_);
 !         my $acct = $fields[0];
 !         my $user = $fields[1];
 !         my $sus = $fields[2];
-!         if ($#fields == 3) {
+! 	if ($#fields == 3) {
 !                 # want just the account allocation, limits on users are ignored
-!                 if ($sus ne "" && $user eq "") {
-!                         $acc_limits{"\U$acct"} = sprintf("%.0f", $sus); # normalise account names to uppercase
-!                 } elsif (!exists($acc_limits{"\U$acct"})) {
-!                         # store all accounts, even those without GrpCPUMins allocated, so we can report usage
-!                         $acc_limits{"\U$acct"} = 0; # normalise account names to uppercase
-!                 }
-!         }
+! 		if ($sus ne "" && $user eq "") {
+! 			$acc_limits{"\U$acct"}{"\U$acct"} = sprintf("%.0f", $sus); # normalise account names to uppercase
+! 		} elsif (!exists($acc_limits{"\U$acct"}{$user})) {
+!                         if ($sus ne "") {
+!                              $acc_limits{"\U$acct"}{$user} = $sus;
+!                         }
+!                         else {
+!                              $acc_limits{"\U$acct"}{$user} = $acc_limits{"\U$acct"}{"\U$acct"};
+!                         }
+! 		} elsif (!exists($acc_limits{"\U$acct"}{"\U$acct"})) {
+  			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
+! 			$acc_limits{"\U$acct"}{"\U$acct"} = 0; # normalise account names to uppercase
+  		}
+  	}
   
   }
   
   close(SACCTMGR);
+***************
+*** 485,497 ****
+  	# only look to a specified account, rather than all
+  	# show all users in the given account
+  	#####################################################################
   
+  	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
   
+! 	if (!exists($acc_limits{$accountname})) {
+  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
+  	}
+  
+  	# first obtain the full list of users for this account; sreport won't report
+  	# on them if they have no usage
+  	query_users_and_accounts($accountname, "", "");
+--- 516,528 ----
+  	# only look to a specified account, rather than all
+  	# show all users in the given account
+  	#####################################################################
+  
+  	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+  
+! 	if (!exists($acc_limits{$accountname}{$accountname})) {
+  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
+  	}
+  
+  	# first obtain the full list of users for this account; sreport won't report
+  	# on them if they have no usage
+  	query_users_and_accounts($accountname, "", "");
+***************
+*** 565,589 ****
+  	# show only the balance for $accountname, unformatted
+  	#####################################################################
+  
+  	#my $cluster_str = ($clustername ne "") ? "-M $clustername " : "";
+  	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+  
+! 	if (!exists($acc_limits{$accountname})) {
+  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
+  	}
+  
+  	# SSHARE: get the usage value, for all single given account
+  	query_sshare_user_and_account_usage($accountname, 1, "");
+  
+  	if ($acc_usage{$accountname} eq "") {
+  		die "$0: invalid account string '$accountname'\n";
+  	}
+  
+  	# this is minutes - we need to convert to hours
+! 	printf "%.0f\n", (($acc_limits{$accountname} - $acc_usage{$accountname})/60);
+  
+  } else {
+  	#####################################################################
+  	# - Scenario #5 show only my usage, in all of my accounts
+  	# only show my usage in the Accounts
+  	# run sacctmgr first, then sreport - first to find all Accounts that I'm a part of,
+--- 596,620 ----
+  	# show only the balance for $accountname, unformatted
+  	#####################################################################
+  
+  	#my $cluster_str = ($clustername ne "") ? "-M $clustername " : "";
+  	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+  
+! 	if (!exists($acc_limits{$accountname}{$accountname})) {
+  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
+  	}
+  
+  	# SSHARE: get the usage value, for all single given account
+  	query_sshare_user_and_account_usage($accountname, 1, "");
+  
+  	if ($acc_usage{$accountname} eq "") {
+  		die "$0: invalid account string '$accountname'\n";
+  	}
+  
+  	# this is minutes - we need to convert to hours
+! 	printf "%.0f\n", (($acc_limits{$accountname}{$accountname} - $acc_usage{$accountname})/60);
+  
+  } else {
+  	#####################################################################
+  	# - Scenario #5 show only my usage, in all of my accounts
+  	# only show my usage in the Accounts
+  	# run sacctmgr first, then sreport - first to find all Accounts that I'm a part of,
