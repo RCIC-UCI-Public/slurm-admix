@@ -13,6 +13,7 @@ system:
   - gtk3-devel
   - munge
   - munge-devel
+  - perl-ExtUtils-MakeMaker
   - "{{system_forpython}}"
 system_forpython:
   - openblas
@@ -43,5 +44,5 @@ manifest:
   - "{{system_forpython}}"
   - "{{slurm_created_rpms}}"
 sets:
-  - "19"
-  - "20"
+# - "19"
+#  - "20"
