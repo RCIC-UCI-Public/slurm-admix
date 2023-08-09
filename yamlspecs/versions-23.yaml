@@ -1,0 +1,4 @@
+!include versions.yaml
+---
+slurm: "23.02.3"
+slurm_tag:
