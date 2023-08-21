@@ -1,3 +1,4 @@
+---
 system:
   - hwloc-devel 
   - freeipmi-devel
@@ -19,14 +20,14 @@ system_forpython:
   - openblas
   - python3-numpy
 bootstrap:
-  - slurm-jobarchive
-  - slurm-bank
   - "{{buildpython}}"
 buildpython:
   - cython
   - pandas
   - clustershell
 build:
+  - slurm-jobarchive
+  - slurm-bank-builder
   - slurm-builder
 slurm_created_rpms:
   - slurm 
@@ -39,11 +40,13 @@ slurm_created_rpms:
   - slurm-slurmdbd
   - slurm-libpmi
   - slurm-perlapi
+contribs:
+  - slurm-jobarchive
+  - slurm-bank
 manifest:
-  - "{{bootstrap}}"
+  - "{{buildpython}}"
+  - "{{contribs}}"
   - "{{system_forpython}}"
   - "{{slurm_created_rpms}}"
 sets:
-# - "19"
-#  - "20"
   - "23"

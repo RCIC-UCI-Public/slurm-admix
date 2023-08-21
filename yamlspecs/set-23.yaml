@@ -1,5 +1,5 @@
 !include packages.yaml
 ---
 versions: versions-23.yaml
-bootstrap:
 system_forpython:
+buildpython:
