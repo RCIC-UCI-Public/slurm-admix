@@ -327,3 +327,14 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  
  	if (defined($opts{s})) {
  		# SREPORT get the usage values (for just the given user), for all the accounts of the given user
+--- slurm-bank-1.4.2/slurm-bank.spec	2023-08-18 15:41:15.199000053 -0700
++++ slurm-bank-1.4.2-new/slurm-bank.spec	2023-08-18 15:57:33.994578813 -0700
+@@ -2,7 +2,7 @@
+ 
+ Name:           slurm-bank
+ Version:        1.4.2
+-Release:        3%{?dist}
++Release:        5%{?dist}
+ Summary:        SLURM Bank, a collection of wrapper scripts to do banking
+ 
+ Group:          System
