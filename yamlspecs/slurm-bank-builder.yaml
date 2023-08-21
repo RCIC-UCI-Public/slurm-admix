@@ -2,18 +2,21 @@
 !include rpm.yaml
 ---
 - package: slurm-bank-builder
-  name: slurm-bank 
+  name: slurm-bank-builder
+  realname: slurm-bank 
   versions: !include versions.yaml
   version: "{{versions.slurm_bank}}"
   vendor_source: https://github.com/jcftang/slurm-bank.git
   release: 2
   no_src_dir: True
-  pkgname: "{{name}}-builder"
-  addfile: "{{name}}.patch"
-  tardir: "{{name}}-{{version}}"
+  pkgname: "{{name}}"
+  addfile: "{{realname}}.patch"
+  tardir: "{{realname}}-{{version}}"
+  src_tarball: "{{realname}}-{{version}}.{{extension}}"
+  src_dir: "{{realname}}-{{version}}"
   description: |
      This is yaml2rpm wrapper build for SLURM bank. It uses rpmbuild directly on the tarball
-     And then copies the built {{name}} rpm. This RPM ({{package}}) never needs to be installed.
+     And then copies the built {{realname}} rpm. This RPM ({{package}}) never needs to be installed.
      SLURM Bank, a collection of wrapper scripts to give slurm GOLD like
      capabilities for managing resources.
   build:
@@ -23,7 +26,7 @@
     # Unzip the the tarball, patch it, rezip it
     preconfigure: >
        tar xzf {{src_tarball}};
-       (cd {{tardir}}; patch -p 1 < ../{{name}}.patch);
+       (cd {{tardir}}; patch -p 1 < ../{{realname}}.patch);
        tar czf {{src_tarball}} {{tardir}}
     target: 
     pkgmake: >
@@ -31,4 +34,4 @@
       unset MAKEFLAGS;
       rpmbuild -ta {{src_tarball}}
   install:
-    makeinstall: find rpmbuild -name '*rpm' -exec mv {} $(REDHAT.RPMS)/$(ARCH)  \; -print
+    makeinstall: echo 'RPM was build via rpmbuild command'
