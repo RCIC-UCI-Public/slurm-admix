@@ -1,27 +1,27 @@
 diff -Naur slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2-new/slurm-bank.spec
---- slurm-bank-1.4.2/slurm-bank.spec	2022-08-20 15:11:48.000000000 -0700
-+++ slurm-bank-1.4.2-new/slurm-bank.spec	2023-05-24 14:48:43.573658729 -0700
+--- slurm-bank-1.4.2/slurm-bank.spec     2022-08-20 15:11:48.000000000 -0700
++++ slurm-bank-1.4.2-new/slurm-bank.spec 2024-06-18 08:23:14.609751072 -0700
 @@ -2,7 +2,7 @@
- 
+
  Name:           slurm-bank
  Version:        1.4.2
 -Release:        1%{?dist}
-+Release:        3%{?dist}
++Release:        6%{?dist}
  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
- 
+
  Group:          System
-diff -Naur slurm-bank-1.4.2/src/sbank slurm-bank-1.4.2-new/src/sbank
---- slurm-bank-1.4.2/src/sbank	2022-08-20 15:03:51.000000000 -0700
-+++ slurm-bank-1.4.2-new/src/sbank	2023-04-07 16:19:41.000000000 -0700
+diff -Naur slurm-bank-1.4.2/src/sbank slurm-bank-1.4.2-new/sbank
+--- slurm-bank-1.4.2/src/sbank	2024-06-10 13:02:48.911827050 -0700
++++ slurm-bank-1.4.2-new/sbank	2024-06-18 08:23:14.609751072 -0700
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env bash
 +#!/usr/bin/bash
  
  # somewhat emulate GOLD's gdeposit account
  #
-diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sbank-balance.pl
---- slurm-bank-1.4.2/src/_sbank-balance.pl	2022-08-20 15:03:51.000000000 -0700
-+++ slurm-bank-1.4.2-new/src/_sbank-balance.pl	2023-05-18 15:02:41.000000000 -0700
+diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-balance.pl
+--- slurm-bank-1.4.2/src/_sbank-balance.pl	2024-06-10 13:02:48.910827046 -0700
++++ slurm-bank-1.4.2-new/_sbank-balance.pl	2024-06-18 08:23:14.604751055 -0700
 @@ -93,7 +93,7 @@
  		printf "%10s %9s + %14s %9s\n",
  			"-"x10, "-"x9, "-"x14, "-"x9;
@@ -73,17 +73,17 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  			if (! exists($acc_usage{$account})) {
 -				$acc_usage{$account} = 0;
 +			        $acc_usage{$account} = 0;
- 			}
- 
--			#print_values($thisuser, $user_usage{$account}, $account, $acc_usage{$account}, $acc_limits{$account});
--			print_values($thisuser, $user_usage_per_acc{$account}{$thisuser}, $account, $acc_usage{$account}, $acc_limits{$account}, $use_sreport);
++			}
++
 +		        if (! exists($acc_limits{$account}{$user})) {
 +				$acc_limits{$account}{$user} = 0;
 +			}
 +		        if (not defined $acc_limits{$account}{$user}) {
 +				$acc_limits{$account}{$user} = 0;
-+			}
-+
+ 			}
+ 
+-			#print_values($thisuser, $user_usage{$account}, $account, $acc_usage{$account}, $acc_limits{$account});
+-			print_values($thisuser, $user_usage_per_acc{$account}{$thisuser}, $account, $acc_usage{$account}, $acc_limits{$account}, $use_sreport);
 +                        # Do we use the total account usage or the user-specific usage.
 +                        if ( $acc_limits{$account}{$user} == $acc_limits{$account}{$account} ) {
 +                            $userusage = $acc_usage{$account};
@@ -148,30 +148,88 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  				# otherwise report on all users in the account
  				$user_usage_per_acc{$account}{$user} = $rawusage;
  
-@@ -332,7 +365,7 @@
- 			$user         = $2;
- 			$rawusage     = $3;
+@@ -311,12 +344,8 @@
+ 	my $balance_only     = shift;
+ 	my $thisuser_only    = shift;
+ 
+-	my $rawusage;
+-
+-	my $cluster_str = ($clustername ne "") ? "-M $clustername " : "";
+ 	my $user_str  = ($thisuser_only ne "") ? "" : "-a ";
+-
+-	my $query_str = "sshare -hp $cluster_str $user_str -A $account_param ";
++	my $query_str = "sshare -hp $user_str -A $account_param -o account,user,GrpTRESRaw%120 ";
+ 
+ 	if ($account_param eq "") {
+ 		die "$0: Unable to run sshare as the account list is empty (the user/account doesn't exist on the cluster perhaps)\n";
+@@ -326,28 +355,31 @@
+ 	open (SSHARE, "$query_str |") or die "$0: Unable to run sshare $!\n";
+ 
+ 	while (<SSHARE>) {
+-		# only show outputs for accounts we're part of
+-		if (/^\s*([^|]+)\|([^|]*)\|[^|]*\|[^|]*\|([^|]*)/) {
+-			$account      = "\U$1"; # normalise account names to uppercase
+-			$user         = $2;
+-			$rawusage     = $3;
  
 -			if (exists( $acc_limits{$account} ) && $user eq "") {
++        my($account, $user, $billing) = extract_sshare_info($_);
++
++        if ($account eq "" && $user eq "" && $billing == -1) {
++            print "! Error: Unable to extract billing information.\n";
++        }
++        else {
++            $account = uc($account);
++
 +			if (exists( $acc_limits{$account}{$account} ) && $user eq "") {
  				# the first line is the overall account usage
- 				$acc_usage{$account} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+-				$acc_usage{$account} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
++				$acc_usage{$account} = sprintf("%.0f", $billing); # sshare reports in minutes
  
-@@ -341,11 +374,11 @@
+ 				# if we only want the unformatted balance, then we're done
+ 				if ($balance_only) {
  					last;
  				}
  
 -			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account} )) {
 +			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account}{$thisuser} )) {
  				# only reporting on the given user, not on all users in the account
- 				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+-				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
++				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $billing); # sshare reports in minutes
  
 -			} elsif (exists( $acc_limits{$account} )) {
 +			} elsif (exists( $acc_limits{$account}{$account} )) {
  				# otherwise report on all users in the account
- 				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
+-				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
++				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $billing); # sshare reports in minutes
  
-@@ -386,7 +419,7 @@
+ 			}
+ 		}
+@@ -357,6 +389,23 @@
+ }
+ 
+ 
++sub extract_sshare_info {
++    my ($string) = @_;
++    if ($string =~ /^\s*(.*?)\|([^\|]*)\|.*?billing=(\d+)/) {
++        my $account_name = $1;
++        my $user_name = $2;
++        my $billing_number = $3;
++
++        return ($account_name, $user_name, $billing_number);
++    } else {
++        print "undef: $string";
++
++        return ("", "", -1); # Return undef if any field is not found
++    }
++}
++
++
++
+ #####################################################################
+ # get options
+ #####################################################################
+@@ -386,7 +435,7 @@
  }
  
  if (defined($opts{u})) {
@@ -180,7 +238,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  }
  
  if (defined($opts{U})) {
-@@ -438,19 +471,55 @@
+@@ -438,19 +487,70 @@
  # because sreport will show usage from deleted accounts
  #####################################################################
  
@@ -189,11 +247,11 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
 -	or die "$0: Unable to run sacctmgr: $!\n";
 +#####################################################################
 +# run sacctmgr to find all Account limits from the list of Assocations
-+# check if an account or a user waas givem and in this case run a help
++# check if an account or a user was given and in this case run a help
 +# query to limit sacctmgr search only to those values. Improves speed
 +#####################################################################
 +
-+my $query_str = "sacctmgr list association -np cluster=$clustername format=Account,User,GrpCPUMins ";
++my $query_str = "sacctmgr list association -np cluster=$clustername format=Account,User,GrpTRESMins ";
 +
 +# if account is givem use it
 +my $uaccounts = $accountname; 
@@ -212,7 +270,6 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
 +    $query_str .= "accounts=$uaccounts ";
 +}
 +
-+
 +open (SACCTMGR, "$query_str |") or die "$0: Unable to run sacctmgr: $!\n";
  
  # GrpCPUMins are not in 'sreport'
@@ -227,13 +284,29 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
 +        my $acct = $fields[0];
 +        my $user = $fields[1];
 +        my $sus = $fields[2];
++        my $billing = 0;
++	
 +	if ($#fields == 3) {
 +                # want just the account allocation, limits on users are ignored
 +		if ($sus ne "" && $user eq "") {
-+			$acc_limits{"\U$acct"}{"\U$acct"} = sprintf("%.0f", $sus); # normalise account names to uppercase
++            if ($sus =~ /billing=(\d+)/) {
++                $billing = $1;
++            } else {
++                print "! No billing number found.\n";
++                exit;
++            }
++            #printf("%0.0f\n", $billing);
++
++			$acc_limits{"\U$acct"}{"\U$acct"} = sprintf("%.0f", $billing); # normalise account names to uppercase
 +		} elsif (!exists($acc_limits{"\U$acct"}{$user})) {
 +                        if ($sus ne "") {
-+                             $acc_limits{"\U$acct"}{$user} = $sus;
++                            if ($sus =~ /billing=(\d+)/) {
++                                $billing = $1;
++                            } else {
++                                print "! No billing number found.\n";
++                                exit;
++                            }
++                            $acc_limits{"\U$acct"}{$user} = $billing;
 +                        }
 +                        else {
 +                             $acc_limits{"\U$acct"}{$user} = $acc_limits{"\U$acct"}{"\U$acct"};
@@ -245,7 +318,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  		}
  	}
  
-@@ -478,7 +547,6 @@
+@@ -478,7 +578,6 @@
  # - Scenario #5 show only my usage, in all of my accounts
  #########################################################################################
  
@@ -253,7 +326,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  if ($showallusers && $accountname ne "") {
  	#####################################################################
  	# - Scenario #1 showallusers in a named account
-@@ -486,9 +554,7 @@
+@@ -486,9 +585,7 @@
  	# show all users in the given account
  	#####################################################################
  
@@ -264,7 +337,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
  	}
  
-@@ -513,8 +579,6 @@
+@@ -513,8 +610,6 @@
  	# we need to show all users in ALL Accounts
  	#####################################################################
  
@@ -273,7 +346,15 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  	# first obtain the full list of users for all accounts; sreport won't report
  	# on them if they have no usage
  	query_users_and_accounts("", "", "");
-@@ -538,15 +602,13 @@
+@@ -524,6 +619,7 @@
+ 		query_sreport_user_and_account_usage(join(',', sort(keys (%acc_limits))), "", "");
+ 	} else {
+ 		# SSHARE: get the usage values (for all users in the accounts), for all accounts (all the ones found by sacctmgr above)
++
+ 		query_sshare_user_and_account_usage(join(',', sort(keys (%acc_limits))), "", "");
+ 	}
+ 
+@@ -538,15 +634,13 @@
  	# and secondly to dump all users in those accounts
  	#####################################################################
  
@@ -290,7 +371,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  
  	if (defined($opts{s})) {
  		# SREPORT: get the usage values (for all users in the accounts), for all the accounts of the given user
-@@ -565,10 +627,7 @@
+@@ -565,10 +659,7 @@
  	# show only the balance for $accountname, unformatted
  	#####################################################################
  
@@ -302,7 +383,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
  	}
  
-@@ -580,7 +639,7 @@
+@@ -580,7 +671,7 @@
  	}
  
  	# this is minutes - we need to convert to hours
@@ -311,7 +392,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  
  } else {
  	#####################################################################
-@@ -590,13 +649,12 @@
+@@ -590,13 +681,12 @@
  	# and secondly to dump all users in those accounts
  	#####################################################################
  
@@ -327,14 +408,43 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/src/_sban
  
  	if (defined($opts{s})) {
  		# SREPORT get the usage values (for just the given user), for all the accounts of the given user
---- slurm-bank-1.4.2/slurm-bank.spec	2023-08-18 15:41:15.199000053 -0700
-+++ slurm-bank-1.4.2-new/slurm-bank.spec	2023-08-18 15:57:33.994578813 -0700
-@@ -2,7 +2,7 @@
+diff -Naur slurm-bank-1.4.2/src/sbank-deposit slurm-bank-1.4.2-new/sbank-deposit
+--- slurm-bank-1.4.2/src/sbank-deposit	2024-06-10 13:02:48.912827053 -0700
++++ slurm-bank-1.4.2-new/sbank-deposit	2024-06-18 08:23:14.593751018 -0700
+@@ -47,13 +47,13 @@
+ 	if [ "${FLAGS_time}" -gt "0" ];
+ 	then
+ 		# the account limit - this could be re-worked in a more clever way and check for exitcodes
+-		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpCPUMins account=${FLAGS_account} | head -1 | awk -F'|' '{print $2}')
++		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpTRESMins account=${FLAGS_account} | head -1 | awk -F'billing=' '{print $2}' | sed 's/|$//'
+ 		debug "${LIMIT}mins is the limit of ${FLAGS_account} on ${FLAGS_cluster}"
  
- Name:           slurm-bank
- Version:        1.4.2
--Release:        3%{?dist}
-+Release:        5%{?dist}
- Summary:        SLURM Bank, a collection of wrapper scripts to do banking
+ 		# new limit is the old limit +/- a delta
+ 		NEW_LIMIT=$((${LIMIT} + (${FLAGS_time} * 60)))
+ 		debug "Updating account with the following (${FLAGS_time}hrs * 60) + ${LIMIT}mins = ${NEW_LIMIT} mins"
+-		$SACCTMGR -i modify account account=${FLAGS_account} set GrpCPUMins=${NEW_LIMIT} where cluster=${FLAGS_cluster}
++		$SACCTMGR -i modify account name=${FLAGS_account} set GrpTRESMins=billing=${NEW_LIMIT} where cluster=${FLAGS_cluster}
+ 	fi
+ }
  
- Group:          System
+diff -Naur slurm-bank-1.4.2/src/sbank-project slurm-bank-1.4.2-new/sbank-project
+--- slurm-bank-1.4.2/src/sbank-project	2024-06-10 13:02:48.913827056 -0700
++++ slurm-bank-1.4.2-new/sbank-project	2024-06-18 08:23:14.611751079 -0700
+@@ -40,7 +40,7 @@
+ 	[ ${FLAGS_account} = 'null' ] && die "${FLAGS_account}" "is not an account, no account specified"
+ 
+ 	debug "creating account with the following account name ${FLAGS_account} and cluster name ${FLAGS_cluster}"
+-	$SACCTMGR -i add account ${FLAGS_account} cluster=${FLAGS_cluster} parent=root GrpCPUMins=0
++	$SACCTMGR -i add account ${FLAGS_account} cluster=${FLAGS_cluster} parent=root GrpTRESMins=billing=0
+ }
+ 
+ cmd_delete()
+@@ -176,7 +176,7 @@
+ 	[ ${FLAGS_account} = 'null' ] && die "${FLAGS_account}" "is not an account, no account specified"
+ 
+ 	debug "Zero balance on account ${FLAGS_account} on cluster ${FLAGS_cluster}"
+-	$SACCTMGR -i modify account account=${FLAGS_account} set GrpCPUMins=0 where cluster=${FLAGS_cluster}
++	$SACCTMGR -i modify account account=${FLAGS_account} set GrpTRESMins=billing=0 where cluster=${FLAGS_cluster}
+ }
+ 
+ cmd_help()
