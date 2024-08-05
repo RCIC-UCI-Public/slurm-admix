@@ -1,27 +1,27 @@
-diff -Naur slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2-new/slurm-bank.spec
---- slurm-bank-1.4.2/slurm-bank.spec     2022-08-20 15:11:48.000000000 -0700
-+++ slurm-bank-1.4.2-new/slurm-bank.spec 2024-06-18 08:23:14.609751072 -0700
+diff -Naur slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2.new/slurm-bank.spec
+--- slurm-bank-1.4.2/slurm-bank.spec	2022-08-20 15:11:48.000000000 -0700
++++ slurm-bank-1.4.2.new/slurm-bank.spec	2024-08-05 11:35:00.418413195 -0700
 @@ -2,7 +2,7 @@
-
+ 
  Name:           slurm-bank
  Version:        1.4.2
 -Release:        1%{?dist}
-+Release:        6%{?dist}
++Release:        7%{?dist}
  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
-
+ 
  Group:          System
-diff -Naur slurm-bank-1.4.2/src/sbank slurm-bank-1.4.2-new/sbank
---- slurm-bank-1.4.2/src/sbank	2024-06-10 13:02:48.911827050 -0700
-+++ slurm-bank-1.4.2-new/sbank	2024-06-18 08:23:14.609751072 -0700
+diff -Naur slurm-bank-1.4.2/src/sbank slurm-bank-1.4.2.new/src/sbank
+--- slurm-bank-1.4.2/src/sbank	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank	2024-08-05 11:35:00.407413159 -0700
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env bash
 +#!/usr/bin/bash
  
  # somewhat emulate GOLD's gdeposit account
  #
-diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-balance.pl
---- slurm-bank-1.4.2/src/_sbank-balance.pl	2024-06-10 13:02:48.910827046 -0700
-+++ slurm-bank-1.4.2-new/_sbank-balance.pl	2024-06-18 08:23:14.604751055 -0700
+diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2.new/src/_sbank-balance.pl
+--- slurm-bank-1.4.2/src/_sbank-balance.pl	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/_sbank-balance.pl	2024-08-05 11:35:00.409413166 -0700
 @@ -93,7 +93,7 @@
  		printf "%10s %9s + %14s %9s\n",
  			"-"x10, "-"x9, "-"x14, "-"x9;
@@ -238,7 +238,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  }
  
  if (defined($opts{U})) {
-@@ -438,19 +487,70 @@
+@@ -438,19 +487,68 @@
  # because sreport will show usage from deleted accounts
  #####################################################################
  
@@ -286,14 +286,13 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
 +        my $sus = $fields[2];
 +        my $billing = 0;
 +	
-+	if ($#fields == 3) {
++	if ($#fields == 3 && $acct ne "root") {
 +                # want just the account allocation, limits on users are ignored
 +		if ($sus ne "" && $user eq "") {
 +            if ($sus =~ /billing=(\d+)/) {
 +                $billing = $1;
 +            } else {
-+                print "! No billing number found.\n";
-+                exit;
++                print "! No billing number found for $acct\n";
 +            }
 +            #printf("%0.0f\n", $billing);
 +
@@ -303,8 +302,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
 +                            if ($sus =~ /billing=(\d+)/) {
 +                                $billing = $1;
 +                            } else {
-+                                print "! No billing number found.\n";
-+                                exit;
++                                print "! No billing number found for $acct\n";
 +                            }
 +                            $acc_limits{"\U$acct"}{$user} = $billing;
 +                        }
@@ -318,7 +316,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  		}
  	}
  
-@@ -478,7 +578,6 @@
+@@ -478,7 +576,6 @@
  # - Scenario #5 show only my usage, in all of my accounts
  #########################################################################################
  
@@ -326,7 +324,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  if ($showallusers && $accountname ne "") {
  	#####################################################################
  	# - Scenario #1 showallusers in a named account
-@@ -486,9 +585,7 @@
+@@ -486,9 +583,7 @@
  	# show all users in the given account
  	#####################################################################
  
@@ -337,7 +335,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
  	}
  
-@@ -513,8 +610,6 @@
+@@ -513,8 +608,6 @@
  	# we need to show all users in ALL Accounts
  	#####################################################################
  
@@ -346,7 +344,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  	# first obtain the full list of users for all accounts; sreport won't report
  	# on them if they have no usage
  	query_users_and_accounts("", "", "");
-@@ -524,6 +619,7 @@
+@@ -524,6 +617,7 @@
  		query_sreport_user_and_account_usage(join(',', sort(keys (%acc_limits))), "", "");
  	} else {
  		# SSHARE: get the usage values (for all users in the accounts), for all accounts (all the ones found by sacctmgr above)
@@ -354,7 +352,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  		query_sshare_user_and_account_usage(join(',', sort(keys (%acc_limits))), "", "");
  	}
  
-@@ -538,15 +634,13 @@
+@@ -538,15 +632,13 @@
  	# and secondly to dump all users in those accounts
  	#####################################################################
  
@@ -371,7 +369,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  
  	if (defined($opts{s})) {
  		# SREPORT: get the usage values (for all users in the accounts), for all the accounts of the given user
-@@ -565,10 +659,7 @@
+@@ -565,10 +657,7 @@
  	# show only the balance for $accountname, unformatted
  	#####################################################################
  
@@ -383,7 +381,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  		die "$0: account '$accountname' doesn't exist. Exiting..\n";
  	}
  
-@@ -580,7 +671,7 @@
+@@ -580,7 +669,7 @@
  	}
  
  	# this is minutes - we need to convert to hours
@@ -392,7 +390,7 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  
  } else {
  	#####################################################################
-@@ -590,13 +681,12 @@
+@@ -590,13 +679,12 @@
  	# and secondly to dump all users in those accounts
  	#####################################################################
  
@@ -408,15 +406,15 @@ diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2-new/_sbank-ba
  
  	if (defined($opts{s})) {
  		# SREPORT get the usage values (for just the given user), for all the accounts of the given user
-diff -Naur slurm-bank-1.4.2/src/sbank-deposit slurm-bank-1.4.2-new/sbank-deposit
---- slurm-bank-1.4.2/src/sbank-deposit	2024-06-10 13:02:48.912827053 -0700
-+++ slurm-bank-1.4.2-new/sbank-deposit	2024-06-18 08:23:14.593751018 -0700
+diff -Naur slurm-bank-1.4.2/src/sbank-deposit slurm-bank-1.4.2.new/src/sbank-deposit
+--- slurm-bank-1.4.2/src/sbank-deposit	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank-deposit	2024-08-05 11:56:45.219243710 -0700
 @@ -47,13 +47,13 @@
  	if [ "${FLAGS_time}" -gt "0" ];
  	then
  		# the account limit - this could be re-worked in a more clever way and check for exitcodes
 -		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpCPUMins account=${FLAGS_account} | head -1 | awk -F'|' '{print $2}')
-+		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpTRESMins account=${FLAGS_account} | head -1 | awk -F'billing=' '{print $2}' | sed 's/|$//'
++		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpTRESMins account=${FLAGS_account} | head -1 | awk -F'billing=' '{print $2}' | sed 's/|$//')
  		debug "${LIMIT}mins is the limit of ${FLAGS_account} on ${FLAGS_cluster}"
  
  		# new limit is the old limit +/- a delta
@@ -427,9 +425,9 @@ diff -Naur slurm-bank-1.4.2/src/sbank-deposit slurm-bank-1.4.2-new/sbank-deposit
  	fi
  }
  
-diff -Naur slurm-bank-1.4.2/src/sbank-project slurm-bank-1.4.2-new/sbank-project
---- slurm-bank-1.4.2/src/sbank-project	2024-06-10 13:02:48.913827056 -0700
-+++ slurm-bank-1.4.2-new/sbank-project	2024-06-18 08:23:14.611751079 -0700
+diff -Naur slurm-bank-1.4.2/src/sbank-project slurm-bank-1.4.2.new/src/sbank-project
+--- slurm-bank-1.4.2/src/sbank-project	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank-project	2024-08-05 11:35:00.414413182 -0700
 @@ -40,7 +40,7 @@
  	[ ${FLAGS_account} = 'null' ] && die "${FLAGS_account}" "is not an account, no account specified"
  
