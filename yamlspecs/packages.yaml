@@ -49,4 +49,4 @@ manifest:
   - "{{system_forpython}}"
   - "{{slurm_created_rpms}}"
 sets:
-  - "23"
+  - "24"
