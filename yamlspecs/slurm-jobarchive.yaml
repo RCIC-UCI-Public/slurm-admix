@@ -4,6 +4,7 @@
 - package: slurm-jobarhive 
   versions: !include versions.yaml
   release: 1
+  baserpm: "{{name}}"
   name: slurm-jobarchive
   version: "{{versions.slurm_jobarchive}}"
   vendor_source: 
