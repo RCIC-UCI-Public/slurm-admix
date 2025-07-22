@@ -6,7 +6,7 @@ diff -Naur slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2.new/slurm-bank.spec
  Name:           slurm-bank
  Version:        1.4.2
 -Release:        1%{?dist}
-+Release:        7%{?dist}
++Release:        8%{?dist}
  Summary:        SLURM Bank, a collection of wrapper scripts to do banking
  
  Group:          System
@@ -428,6 +428,911 @@ diff -Naur slurm-bank-1.4.2/src/sbank-deposit slurm-bank-1.4.2.new/src/sbank-dep
 diff -Naur slurm-bank-1.4.2/src/sbank-project slurm-bank-1.4.2.new/src/sbank-project
 --- slurm-bank-1.4.2/src/sbank-project	2022-08-20 15:03:51.000000000 -0700
 +++ slurm-bank-1.4.2.new/src/sbank-project	2024-08-05 11:35:00.414413182 -0700
+@@ -40,7 +40,7 @@
+ 	[ ${FLAGS_account} = 'null' ] && die "${FLAGS_account}" "is not an account, no account specified"
+ 
+ 	debug "creating account with the following account name ${FLAGS_account} and cluster name ${FLAGS_cluster}"
+-	$SACCTMGR -i add account ${FLAGS_account} cluster=${FLAGS_cluster} parent=root GrpCPUMins=0
++	$SACCTMGR -i add account ${FLAGS_account} cluster=${FLAGS_cluster} parent=root GrpTRESMins=billing=0
+ }
+ 
+ cmd_delete()
+@@ -176,7 +176,7 @@
+ 	[ ${FLAGS_account} = 'null' ] && die "${FLAGS_account}" "is not an account, no account specified"
+ 
+ 	debug "Zero balance on account ${FLAGS_account} on cluster ${FLAGS_cluster}"
+-	$SACCTMGR -i modify account account=${FLAGS_account} set GrpCPUMins=0 where cluster=${FLAGS_cluster}
++	$SACCTMGR -i modify account account=${FLAGS_account} set GrpTRESMins=billing=0 where cluster=${FLAGS_cluster}
+ }
+ 
+ cmd_help()
+diff -Naur slurm-bank-1.4.2/slurm-bank.spec slurm-bank-1.4.2.new/slurm-bank.spec
+--- slurm-bank-1.4.2/slurm-bank.spec	2022-08-20 15:11:48.000000000 -0700
++++ slurm-bank-1.4.2.new/slurm-bank.spec	2025-05-27 10:26:57.453835530 -0700
+@@ -2,7 +2,7 @@
+ 
+ Name:           slurm-bank
+ Version:        1.4.2
+-Release:        1%{?dist}
++Release:        8%{?dist}
+ Summary:        SLURM Bank, a collection of wrapper scripts to do banking
+ 
+ Group:          System
+diff -Naur slurm-bank-1.4.2/src/sbank slurm-bank-1.4.2.new/src/sbank
+--- slurm-bank-1.4.2/src/sbank	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank	2025-05-27 09:02:10.323869294 -0700
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env bash
++#!/usr/bin/bash
+ 
+ # somewhat emulate GOLD's gdeposit account
+ #
+diff -Naur slurm-bank-1.4.2/src/sbank-balance slurm-bank-1.4.2.new/src/sbank-balance
+--- slurm-bank-1.4.2/src/sbank-balance	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank-balance	2025-05-27 10:00:15.037384287 -0700
+@@ -3,14 +3,14 @@
+ 
+ usage() 
+ {
+-	echo "usage: sbank balance statement [-c clustername] [-b accountname] [-a accountname] [-A] [-u username] [-U] [-s yyyy-mm-dd]"
++	echo "usage: sbank balance statement [-c clustername] [-b accountname] [-a accountname (-D --detailed)] [-A] [-u username] [-U] [-s yyyy-mm-dd]"
+ 	echo "   or: sbank balance request -c CLUSTER -a ACCOUNT -t TIME -v"
+ 	echo "   or: sbank balance checkscript -c CLUSTER -s SCRIPT -v"
+ 	echo 
+ 	echo "options for 'statement'"
+ 	echo "        -c:     report on cluster 'clustername' (defaults to the local cluster)"
+ 	echo "        -b:     report unformatted balance of account 'accountname'"
+-	echo "        -a:     report balance of account 'accountname' (defaults to all accounts of the current user)"
++	echo "        -a:     report balance of account 'accountname' (defaults to all accounts of the current user) -D or --detailed optionally breaks down usage and limits by user"
+ 	echo "        -A:     report all accounts (defaults to all accounts of the current user)"
+ 	echo "        -U:     report only the current user's balances (defaults to all users in all accounts of the current user)"
+ 	echo "        -u:     report information for the given username, instead of the current user"
+@@ -44,38 +44,46 @@
+ 
+ cmd_statement()
+ {
+-	local opts
++        local opts=""
+ 
+-	# define some variables
+-	debug "define some variables"
+-	DEFINE_string 'account' '' 'specify a slurm account' 'a'
+-	DEFINE_string 'account2' '' 'specify a slurm account for unformatted balance' 'b'
+-	DEFINE_string 'cluster' '' 'specify a cluster' 'c'
+-	DEFINE_string 'user' '' 'specify a username' 'u'
+-	DEFINE_string 'startdate' '' 'specify a start-date yyyy-mm-dd' 's'
+-	DEFINE_boolean 'all' false 'show all users in the account' 'A'
+-	DEFINE_boolean 'useronly' false 'show only the current user' 'U'
+-
+-	FLAGS_PARENT="sbank balance statement"
+-
+-	# parse the command line
+-	debug "parse command line"
+-	parse_args "$@"
+-
+-	# change behaviour of getopt to let perl program take args
+-	unset POSIXLY_CORRECT
+-
+-	[ "${FLAGS_cluster}" != "" ]  && opts="$opts -c ${FLAGS_cluster}"
+-	[ "${FLAGS_account}" != "" ]  && opts="$opts -a ${FLAGS_account}"
+-	[ "${FLAGS_account2}" != "" ]  && opts="$opts -b ${FLAGS_account2}"
+-	[ "${FLAGS_user}" != "" ]  && opts="$opts -u ${FLAGS_user}"
+-	[ "${FLAGS_startdate}" != "" ]  && opts="$opts -s ${FLAGS_startdate}"
+-	[ ${FLAGS_all} -eq ${FLAGS_TRUE} ] && opts="$opts -A"
+-	[ ${FLAGS_useronly} -eq ${FLAGS_TRUE} ] && opts="$opts -U"
++        # define some variables
++        debug "define some variables"
++        DEFINE_string 'account' '' 'specify a slurm account' 'a'
++        DEFINE_string 'account2' '' 'specify a slurm account for unformatted balance' 'b'
++        DEFINE_string 'cluster' '' 'specify a cluster' 'c'
++        DEFINE_string 'user' '' 'specify a username' 'u'
++        DEFINE_string 'startdate' '' 'specify a start-date yyyy-mm-dd' 's'
++        DEFINE_boolean 'all' false 'show all users in the account' 'A'
++        DEFINE_boolean 'useronly' false 'show only the current user' 'U'
++        DEFINE_boolean 'detailed' false 'enable detailed output' 'D'  # Added detailed flag
++
++        FLAGS_PARENT="sbank balance statement"
++
++        # parse the command line
++        debug "parse command line"
++        parse_args "$@"
++
++        # change behaviour of getopt to let perl program take args
++        unset POSIXLY_CORRECT
++
++        [ -n "${FLAGS_cluster}" ] && opts="$opts -c ${FLAGS_cluster}"
++        [ -n "${FLAGS_account}" ] && opts="$opts -a ${FLAGS_account}"
++        [ -n "${FLAGS_account2}" ] && opts="$opts -b ${FLAGS_account2}"
++        [ -n "${FLAGS_user}" ] && opts="$opts -u ${FLAGS_user}"
++        [ -n "${FLAGS_startdate}" ] && opts="$opts -s ${FLAGS_startdate}"
++        [ ${FLAGS_all} -eq ${FLAGS_TRUE} ] && opts="$opts -A"
++        [ ${FLAGS_useronly} -eq ${FLAGS_TRUE} ] && opts="$opts -U"
++
++        # Fix: Ensure FLAGS_detailed is set before checking its value
++        if [ -n "${FLAGS_account}" ] && [ "${FLAGS_detailed}" = "${FLAGS_TRUE}" ]; then
++            opts="$opts -D"
++        fi
+ 
+-	$SLURMBANK_DIR/_sbank-balance.pl $opts
++        # Execute the command
++        $SLURMBANK_DIR/_sbank-balance.pl $opts
+ }
+ 
++
+ cmd_request()
+ {
+ 	local balance_initial
+diff -Naur slurm-bank-1.4.2/src/_sbank-balance.pl slurm-bank-1.4.2.new/src/_sbank-balance.pl
+--- slurm-bank-1.4.2/src/_sbank-balance.pl	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/_sbank-balance.pl	2025-05-27 10:00:01.186541301 -0700
+@@ -27,7 +27,7 @@
+ use strict;
+ use Getopt::Std;
+ use POSIX qw(strftime);
+-
++#use Getopt::Long;
+ 
+ my %acc_limits = ();
+ my %acc_usage = ();
+@@ -80,6 +80,25 @@
+ }
+ 
+ # print headers for the output
++sub print_headers_new( $ ) {
++	my $use_sreport = shift;
++
++	if ($use_sreport) {
++		printf "%s\n", "-"x70;
++		printf "User/Account Utilisation on $clustername $sreport_start - $sreport_end\n";
++		printf "Time reported in CPU Hours\n";
++		printf "%s\n", "-"x70;
++		printf "%-10s %9s | %14s %9s\n",
++			"User", "Usage", "Account", "Usage";
++		printf "%10s %9s + %14s %9s\n",
++			"-"x10, "-"x9, "-"x14, "-"x9;
++	} else {
++		printf "%-10s %14s | %13s %9s (SUs)\n",
++			"User", "Usage", "User Limit", "Available to User";
++		printf "%10s %9s + %13s %9s\n",
++			"-"x10, "-"x14, "-"x13, "-"x23;
++	}
++}
+ sub print_headers( $ ) {
+ 	my $use_sreport = shift;
+ 
+@@ -93,7 +112,7 @@
+ 		printf "%10s %9s + %14s %9s\n",
+ 			"-"x10, "-"x9, "-"x14, "-"x9;
+ 	} else {
+-		printf "%-10s %9s | %14s %9s | %13s %9s (CPU hrs)\n",
++		printf "%-10s %9s | %14s %9s | %13s %9s (SUs)\n",
+ 			"User", "Usage", "Account", "Usage", "Account Limit", "Available";
+ 		printf "%10s %9s + %14s %9s + %13s %9s\n",
+ 			"-"x10, "-"x9, "-"x14, "-"x9, "-"x13, "-"x9;
+@@ -118,12 +137,27 @@
+ 			$thisuser, fmt_mins_as_hrs($user_usage),
+ 			$acc, fmt_mins_as_hrs($acc_usage),
+ 			fmt_mins_as_hrs($acc_limit),
+-			($acc_limit == 0) ? "N/A" : fmt_mins_as_hrs($acc_limit - $acc_usage);
++			fmt_mins_as_hrs($acc_limit - $acc_usage);
++			#($acc_limit == 0) ? "N/A" : fmt_mins_as_hrs($acc_limit - $acc_usage);
+ 	}
+ }
+ 
+ # print the formatted values
+-sub print_results( $$$$ ) {
++sub print_values_new( $$$$$ ) {
++	my $thisuser = shift;
++	my $user_usage = shift;
++	my $acc_usage = shift;
++	my $acc_limit = shift;
++	my $use_sreport = shift;
++
++		printf "%-10s %14s | %13s %23s\n",
++			$thisuser, fmt_mins_as_hrs($user_usage),
++			fmt_mins_as_hrs($acc_limit),
++			fmt_mins_as_hrs($acc_limit - $acc_usage);
++}
++
++# print the formatted values
++sub print_results_new( $$$$ ) {
+ 	my $multiple_users = shift;
+ 	my $multiple_accs  = shift;
+ 	my $include_root   = shift;
+@@ -132,7 +166,124 @@
+ 	my @account_list = sort keys %user_usage_per_acc;
+ 	my $first_iter   = 1;
+ 	my $rawusage;
++        # specific user usage and unformatted user name
++        my $userusage;
++        my $user_ufmt;  
++	if ($include_root) {
++		# instead of a purely sorted list, show the 'ROOT' account first (assuming
++		# that the account is actually called 'ROOT')
++		my $root_acc = 'ROOT';
++
++		# linear search (even though the list is sorted and we could do a binary)
++		my $index = 0;
++		$index++ until ($index > $#account_list || $account_list[$index] eq $root_acc);
++
++		# remove that index from the array
++		splice(@account_list, $index, 1);
++
++		# and push 'ROOT' back as the first element
++		unshift(@account_list, $root_acc);
++	}
+ 
++	print_headers_new($use_sreport);
++	#printf "\n";
++
++	# now print the values, including those users with no usage
++	foreach my $account (@account_list) {
++
++		if (!$first_iter && $multiple_accs) {
++			# separate each account
++			print "\n";  #NPW comment
++		}
++		$first_iter = 0;
++
++		if (!$multiple_users) {
++			# only reporting for a single user
++
++			## stop warnings if this account doesn't have a limit
++			#if (! exists($acc_limits{$account})) {
++			#	$acc_limits{$account} = 0;
++			#}
++
++			if (!defined($user) || $user eq "") {
++				$user = $thisuser;
++			}
++			
++			if (! exists($acc_usage{$account})) {
++			        $acc_usage{$account} = 0;
++			}
++
++		        if (! exists($acc_limits{$account}{$user})) {
++				$acc_limits{$account}{$user} = 0;
++			}
++		        if (not defined $acc_limits{$account}{$user}) {
++				$acc_limits{$account}{$user} = 0;
++			}
++
++                        # Do we use the total account usage or the user-specific usage.
++                        if ( $acc_limits{$account}{$user} == $acc_limits{$account}{$account} ) {
++                            $userusage = $acc_usage{$account};
++                        } else {
++                            $userusage = $user_usage_per_acc{$account}{$user};
++                        }
++			print_values_new($user, $user_usage_per_acc{$account}{$user}, $userusage, $acc_limits{$account}{$user}, $use_sreport);
++
++		} else {
++			# else loop over the users
++
++			foreach my $user (sort keys %{ $user_usage_per_acc{$account} } ) {
++				# then each subsequent line is an individual user
++				# (already in alphabetical order)
++
++				$rawusage = $user_usage_per_acc{$account}{$user};
++                                $user_ufmt = $user;
++
++				# highlight current user
++				if ($multiple_users && $user eq $thisuser) {
++					$user = "$user *";
++				}
++
++				## stop warnings if this account doesn't have a limit
++				#if (! exists($acc_limits{$account})) {
++				#	$acc_limits{$account} = 0;
++				#}
++
++				# stop warnings if this account doesn't have any usage
++				if (! exists($acc_usage{$account})) {
++					$acc_usage{$account} = 0;
++				}
++
++				# check if account is defined and exists
++				if (! defined($acc_limits{$account}{$user_ufmt})) {
++					$acc_limits{$account}{$user_ufmt} = 0;
++				} 
++				if (! exists($acc_limits{$account}{$account})) {
++					$acc_limits{$account}{$account} = 0;
++				}
++
++                                # Do we use the total account usage or the user-specific usage.
++                                if ( $acc_limits{$account}{$user_ufmt} == $acc_limits{$account}{$account} ) {
++                                     $userusage = $acc_usage{$account};
++                                } else {
++                                     $userusage = $user_usage_per_acc{$account}{$user_ufmt};
++                                }
++				print_values_new($user, sprintf("%.0f", $rawusage), $userusage, $acc_limits{$account}{$user_ufmt}, $use_sreport);
++			}
++		}
++	}
++}
++sub print_results( $$$$ ) {
++	my $multiple_users = shift;
++	my $multiple_accs  = shift;
++	my $include_root   = shift;
++	my $use_sreport    = shift;
++
++	my @account_list = sort keys %user_usage_per_acc;
++	my $first_iter   = 1;
++	my $rawusage;
++        # specific user usage and unformatted user name
++        my $userusage;
++        my $user_ufmt;  
+ 	if ($include_root) {
+ 		# instead of a purely sorted list, show the 'ROOT' account first (assuming
+ 		# that the account is actually called 'ROOT')
+@@ -157,7 +308,7 @@
+ 
+ 		if (!$first_iter && $multiple_accs) {
+ 			# separate each account
+-			print "\n";
++			print "\n";  #NPW comment
+ 		}
+ 		$first_iter = 0;
+ 
+@@ -169,13 +320,28 @@
+ 			#	$acc_limits{$account} = 0;
+ 			#}
+ 
+-			# stop warnings if this account doesn't have any usage
++			if (!defined($user) || $user eq "") {
++				$user = $thisuser;
++			}
++			
+ 			if (! exists($acc_usage{$account})) {
+-				$acc_usage{$account} = 0;
++			        $acc_usage{$account} = 0;
++			}
++
++		        if (! exists($acc_limits{$account}{$user})) {
++				$acc_limits{$account}{$user} = 0;
++			}
++		        if (not defined $acc_limits{$account}{$user}) {
++				$acc_limits{$account}{$user} = 0;
+ 			}
+ 
+-			#print_values($thisuser, $user_usage{$account}, $account, $acc_usage{$account}, $acc_limits{$account});
+-			print_values($thisuser, $user_usage_per_acc{$account}{$thisuser}, $account, $acc_usage{$account}, $acc_limits{$account}, $use_sreport);
++                        # Do we use the total account usage or the user-specific usage.
++                        if ( $acc_limits{$account}{$user} == $acc_limits{$account}{$account} ) {
++                            $userusage = $acc_usage{$account};
++                        } else {
++                            $userusage = $user_usage_per_acc{$account}{$user};
++                        }
++			print_values($user, $user_usage_per_acc{$account}{$user}, $account, $userusage, $acc_limits{$account}{$user}, $use_sreport);
+ 
+ 		} else {
+ 			# else loop over the users
+@@ -185,6 +351,7 @@
+ 				# (already in alphabetical order)
+ 
+ 				$rawusage = $user_usage_per_acc{$account}{$user};
++                                $user_ufmt = $user;
+ 
+ 				# highlight current user
+ 				if ($multiple_users && $user eq $thisuser) {
+@@ -201,7 +368,21 @@
+ 					$acc_usage{$account} = 0;
+ 				}
+ 
+-				print_values($user, sprintf("%.0f", $rawusage), $account, $acc_usage{$account}, $acc_limits{$account}, $use_sreport);
++				# check if account is defined and exists
++				if (! defined($acc_limits{$account}{$user_ufmt})) {
++					$acc_limits{$account}{$user_ufmt} = 0;
++				} 
++				if (! exists($acc_limits{$account}{$account})) {
++					$acc_limits{$account}{$account} = 0;
++				}
++
++                                # Do we use the total account usage or the user-specific usage.
++                                if ( $acc_limits{$account}{$user_ufmt} == $acc_limits{$account}{$account} ) {
++                                     $userusage = $acc_usage{$account};
++                                } else {
++                                     $userusage = $user_usage_per_acc{$account}{$user_ufmt};
++                                }
++				print_values($user, sprintf("%.0f", $rawusage), $account, $userusage, $acc_limits{$account}{$user_ufmt}, $use_sreport);
+ 			}
+ 		}
+ 	}
+@@ -280,7 +461,7 @@
+ 			$user         = $2;
+ 			$rawusage     = $3;
+ 
+-			if (exists( $acc_limits{$account} ) && $user eq "") {
++			if (exists( $acc_limits{$account}{$account} ) && $user eq "") {
+ 				# the first line is the overall account usage
+ 				$acc_usage{$account} = $rawusage;
+ 
+@@ -289,11 +470,11 @@
+ 					last;
+ 				}
+ 
+-			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account} )) {
++			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account}{$thisuser} )) {
+ 				# only reporting on the given user, not on all users in the account
+ 				$user_usage_per_acc{$account}{$thisuser} = $rawusage;
+ 
+-			} elsif (exists( $acc_limits{$account} )) {
++			} elsif (exists( $acc_limits{$account}{$account} )) {
+ 				# otherwise report on all users in the account
+ 				$user_usage_per_acc{$account}{$user} = $rawusage;
+ 
+@@ -311,12 +492,8 @@
+ 	my $balance_only     = shift;
+ 	my $thisuser_only    = shift;
+ 
+-	my $rawusage;
+-
+-	my $cluster_str = ($clustername ne "") ? "-M $clustername " : "";
+ 	my $user_str  = ($thisuser_only ne "") ? "" : "-a ";
+-
+-	my $query_str = "sshare -hp $cluster_str $user_str -A $account_param ";
++	my $query_str = "sshare -hp $user_str -A $account_param -o account,user,GrpTRESRaw%120 ";
+ 
+ 	if ($account_param eq "") {
+ 		die "$0: Unable to run sshare as the account list is empty (the user/account doesn't exist on the cluster perhaps)\n";
+@@ -326,28 +503,31 @@
+ 	open (SSHARE, "$query_str |") or die "$0: Unable to run sshare $!\n";
+ 
+ 	while (<SSHARE>) {
+-		# only show outputs for accounts we're part of
+-		if (/^\s*([^|]+)\|([^|]*)\|[^|]*\|[^|]*\|([^|]*)/) {
+-			$account      = "\U$1"; # normalise account names to uppercase
+-			$user         = $2;
+-			$rawusage     = $3;
+ 
+-			if (exists( $acc_limits{$account} ) && $user eq "") {
++        my($account, $user, $billing) = extract_sshare_info($_);
++
++        if ($account eq "" && $user eq "" && $billing == -1) {
++            print "! Error: Unable to extract billing information.\n";
++        }
++        else {
++            $account = uc($account);
++
++			if (exists( $acc_limits{$account}{$account} ) && $user eq "") {
+ 				# the first line is the overall account usage
+-				$acc_usage{$account} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
++				$acc_usage{$account} = sprintf("%.0f", $billing); # sshare reports in minutes
+ 
+ 				# if we only want the unformatted balance, then we're done
+ 				if ($balance_only) {
+ 					last;
+ 				}
+ 
+-			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account} )) {
++			} elsif ($thisuser_only && $user eq $thisuser && exists( $acc_limits{$account}{$thisuser} )) {
+ 				# only reporting on the given user, not on all users in the account
+-				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
++				$user_usage_per_acc{$account}{$thisuser} = sprintf("%.0f", $billing); # sshare reports in minutes
+ 
+-			} elsif (exists( $acc_limits{$account} )) {
++			} elsif (exists( $acc_limits{$account}{$account} )) {
+ 				# otherwise report on all users in the account
+-				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $rawusage/60); # sshare reports in seconds
++				$user_usage_per_acc{$account}{$user} = sprintf("%.0f", $billing); # sshare reports in minutes
+ 
+ 			}
+ 		}
+@@ -357,57 +537,76 @@
+ }
+ 
+ 
++sub extract_sshare_info {
++    my ($string) = @_;
++    if ($string =~ /^\s*(.*?)\|([^\|]*)\|.*?billing=(\d+)/) {
++        my $account_name = $1;
++        my $user_name = $2;
++        my $billing_number = $3;
++
++        return ($account_name, $user_name, $billing_number);
++    } else {
++        print "undef: $string";
++
++        return ("", "", -1); # Return undef if any field is not found
++    }
++}
++
+ #####################################################################
+ # get options
+ #####################################################################
+ my %opts;
+-getopts('hc:b:a:Au:Us:', \%opts) || usage();
++getopts('hc:b:a:Au:Us:D', \%opts) || usage();
+ 
+ if (defined($opts{h})) {
+-	usage();
++        usage();
++}
++
++if (defined($opts{D})) {
++        $accountname = "\U$opts{a}"; # normalise account names to uppercase
+ }
+ 
+ if (defined($opts{c})) {
+-	$clustername = $opts{c};
++        $clustername = $opts{c};
+ }
+ 
+ if (defined($opts{b})) {
+-	$show_unformatted_balance = 1;
+-	$showallusers = 0;
+-	$accountname = "\U$opts{b}"; # normalise account names to uppercase
++        $show_unformatted_balance = 1;
++        $showallusers = 0;
++        $accountname = "\U$opts{b}"; # normalise account names to uppercase
+ }
+ 
+-if (defined($opts{a})) {
+-	$accountname = "\U$opts{a}"; # normalise account names to uppercase
++if (defined($opts{a}) && !defined($opts{D})) {
++        $showallusers = 0;
++        $accountname = "\U$opts{a}"; # normalise account names to uppercase
+ }
+ 
+ if (defined($opts{A})) {
+-	$showallaccs = 1;
++        $showallaccs = 1;
+ }
+ 
+ if (defined($opts{u})) {
+-	$thisuser = $opts{u};
++        $thisuser = $opts{u};
+ }
+ 
+ if (defined($opts{U})) {
+-	$showallusers = 0;
++        $showallusers = 0;
+ }
+ 
+ if (defined($opts{s})) {
+-	unless ($opts{s} =~ /^\d{4}-\d{2}-\d{2}$/) { usage(); }
++        unless ($opts{s} =~ /^\d{4}-\d{2}-\d{2}$/) { usage(); }
+ 
+-	if (defined($opts{b})) {
+-		die "$0: the 'sreport' parameter doesn't make sense for the unformatted balance query. Exiting..\n";
+-	}
++        if (defined($opts{b})) {
++                die "$0: the 'sreport' parameter doesn't make sense for the unformatted balance query. Exiting..\n";
++        }
+ 
+-	$sreport_start = $opts{s};
+-	$sreport_end   = strftime "%Y-%m-%d", (localtime(time() + $SREPORT_END_OFFSET));
++        $sreport_start = $opts{s};
++        $sreport_end   = strftime "%Y-%m-%d", (localtime(time() + $SREPORT_END_OFFSET));
+ #} else {
+-#	$sreport_start = strftime "%Y-%m-%d", (localtime(time() - $SREPORT_START_OFFSET));
+-#	$sreport_end   = strftime "%Y-%m-%d", (localtime(time() + $SREPORT_END_OFFSET));
++#       $sreport_start = strftime "%Y-%m-%d", (localtime(time() - $SREPORT_START_OFFSET));
++#       $sreport_end   = strftime "%Y-%m-%d", (localtime(time() + $SREPORT_END_OFFSET));
+ }
+ 
+-
+ #####################################################################
+ # start
+ # get the local clustername, or use the given clustername
+@@ -438,19 +637,68 @@
+ # because sreport will show usage from deleted accounts
+ #####################################################################
+ 
+-open (SACCTMGR, "sacctmgr list association cluster=$clustername format='Account,GrpCPUMins'" .
+-		" -p -n |")
+-	or die "$0: Unable to run sacctmgr: $!\n";
++#####################################################################
++# run sacctmgr to find all Account limits from the list of Assocations
++# check if an account or a user was given and in this case run a help
++# query to limit sacctmgr search only to those values. Improves speed
++#####################################################################
++
++my $query_str = "sacctmgr list association -np cluster=$clustername format=Account,User,GrpTRESMins ";
++
++# if account is givem use it
++my $uaccounts = $accountname; 
++# otherwise find only accounts this user belongs to
++if ($showallaccs == 0) {
++    if ($accountname eq "") {
++	my $query_str1 = "sacctmgr show association -np format=Account user=$thisuser\n";
++	open (SACCTMGR, "$query_str1 |") or die "$0: Unable to run sacctmgr: $!\n";
++	while (<SACCTMGR>) {
++		my @fields=split('\|',$_);
++		my $acct = $fields[0];
++		$uaccounts .= ",$acct";
++	}
++    }
++    # udpate generic query with specific accounts for the user
++    $query_str .= "accounts=$uaccounts ";
++}
++
++open (SACCTMGR, "$query_str |") or die "$0: Unable to run sacctmgr: $!\n";
+ 
+ # GrpCPUMins are not in 'sreport'
+ while (<SACCTMGR>) {
+-	# format is "acct_string|nnnn|" where nnnn is the number of GrpCPUMins allocated
+-	if (/^([^|]+)\|([^|]*)/) {
+-		if ($2 ne "") {
+-			$acc_limits{"\U$1"} = sprintf("%.0f", $2); # normalise account names to uppercase
+-		} elsif (!exists($acc_limits{"\U$1"})) {
++	# format is "acct_string|user|nnnn|" where nnnn is the number of GrpCPUMins allocated
++        my @fields=split('\|',$_);
++        my $acct = $fields[0];
++        my $user = $fields[1];
++        my $sus = $fields[2];
++        my $billing = 0;
++	
++	if ($#fields == 3 && $acct ne "root") {
++                # want just the account allocation, limits on users are ignored
++		if ($sus ne "" && $user eq "") {
++            if ($sus =~ /billing=(\d+)/) {
++                $billing = $1;
++            } else {
++                print "! No billing number found for $acct\n";
++            }
++            #printf("%0.0f\n", $billing);
++
++			$acc_limits{"\U$acct"}{"\U$acct"} = sprintf("%.0f", $billing); # normalise account names to uppercase
++		} elsif (!exists($acc_limits{"\U$acct"}{$user})) {
++                        if ($sus ne "") {
++                            if ($sus =~ /billing=(\d+)/) {
++                                $billing = $1;
++                            } else {
++                                print "! No billing number found for $acct\n";
++                            }
++                            $acc_limits{"\U$acct"}{$user} = $billing;
++                        }
++                        else {
++                             $acc_limits{"\U$acct"}{$user} = $acc_limits{"\U$acct"}{"\U$acct"};
++                        }
++		} elsif (!exists($acc_limits{"\U$acct"}{"\U$acct"})) {
+ 			# store all accounts, even those without GrpCPUMins allocated, so we can report usage
+-			$acc_limits{"\U$1"} = 0; # normalise account names to uppercase
++			$acc_limits{"\U$acct"}{"\U$acct"} = 0; # normalise account names to uppercase
+ 		}
+ 	}
+ 
+@@ -459,6 +707,37 @@
+ close(SACCTMGR);
+ 
+ 
++use strict;
++use warnings;
++use DBI;
++
++sub get_account_info {
++    my ($account_name) = @_;
++    $account_name = lc($account_name);
++    my $db_file = '/data/utils/reallocations/accounting.db';
++
++    # Connect to the SQLite database
++    my $dbh = DBI->connect("dbi:SQLite:dbname=$db_file", "", "", {
++        RaiseError => 1,
++        AutoCommit => 1,
++    }) or die $DBI::errstr;
++
++    # Prepare and execute the SQL query
++    my $sth = $dbh->prepare("SELECT account, realloc_date FROM reallocdate WHERE account = ?");
++    $sth->execute($account_name);
++
++    # Fetch the result
++    my $row = $sth->fetchrow_hashref();
++
++    # Clean up
++    $sth->finish();
++    $dbh->disconnect();
++
++    # Return result or undef if not found
++    return $row;
++}
++
++
+ ######################################################################
+ ## quick sanity check - did we find any GrpCPUMins ?
+ ## removing this check, as we are now storing all accounts in %acc_limits
+@@ -471,50 +750,94 @@
+ 
+ #########################################################################################
+ # main code: there are a few different combinations:
++# - Scenario #0 don't show all users, only account summary
+ # - Scenario #1 showallusers in a named account
+ # - Scenario #2 showallusers in every account, not just mine
+ # - Scenario #3 showallusers in all of my accounts
+ # - Scenario #4 show unformatted balance as a single figure, for the named account
+ # - Scenario #5 show only my usage, in all of my accounts
+ #########################################################################################
+-
+-
+-if ($showallusers && $accountname ne "") {
++    if (!$showallusers && $accountname ne "") {
++    #####################################################################
++    # - Scenario #0 
++    #####################################################################
++        if (!exists($acc_limits{$accountname}{$accountname})) {
++                die "$0: account '$accountname' doesn't exist. Exiting..\n";
++        }
++
++        # SSHARE: get the usage value, for all single given account
++        query_sshare_user_and_account_usage($accountname, 1, "");
++
++        if ($acc_usage{$accountname} eq "") {
++                die "$0: invalid account string '$accountname'\n";
++        }
++
++    printf "%-15s %9s | %13s %9s (SUs)\n", "Account", "Usage", "Account Limit", "Available";
++    printf "%-15s %9s + %13s %15s\n", "-"x15, "-"x9, "-"x13, "-"x15;
++    printf "%-15s %9s | %13s %15s\n", $accountname, fmt_mins_as_hrs($acc_usage{$accountname}), fmt_mins_as_hrs($acc_limits{$accountname}{$accountname}), fmt_mins_as_hrs($acc_limits{$accountname}{$accountname} - $acc_usage{$accountname});
++    printf "%s\n","-"x57;
++    
++    my $realloc_info = get_account_info($accountname);
++    	if ($realloc_info) {
++		print defined $realloc_info->{realloc_date} ?
++			"Next reallocation: $realloc_info->{realloc_date}\n" :
++			"Next reallocation: undef\n";
++    		printf "%s\n","-"x57;
++	} 
++    	else {
++    		print "Next reallocation: No data found.\n";
++    		printf "%s\n","-"x57;
++	}
++}
++    elsif ($showallusers && $accountname ne "") {
+ 	#####################################################################
+ 	# - Scenario #1 showallusers in a named account
+ 	# only look to a specified account, rather than all
+ 	# show all users in the given account
+ 	#####################################################################
+ 
+-	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+-
+-	if (!exists($acc_limits{$accountname})) {
+-		die "$0: account '$accountname' doesn't exist. Exiting..\n";
+-	}
+-
+-	# first obtain the full list of users for this account; sreport won't report
+-	# on them if they have no usage
+-	query_users_and_accounts($accountname, "", "");
++        my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+ 
+-	if (defined($opts{s})) {
+-		# SREPORT: get the usage values (for all users in the accounts), for just the named account
+-		query_sreport_user_and_account_usage($accountname, "", "");
+-	} else {
+-		# SSHARE get the usage values (for all users in the accounts), for just the named account
+-		query_sshare_user_and_account_usage($accountname, "", "");
++        if (!exists($acc_limits{$accountname})) {
++                die "$0: account '$accountname' doesn't exist. Exiting..\n";
++        }
++
++        # first obtain the full list of users for this account; sreport won't report
++        # on them if they have no usage
++        query_users_and_accounts($accountname, "", "");
++
++        if (defined($opts{s})) {
++                # SREPORT: get the usage values (for all users in the accounts), for just the named account
++                query_sreport_user_and_account_usage($accountname, "", "");
++        } else {
++                # SSHARE get the usage values (for all users in the accounts), for just the named account
++                query_sshare_user_and_account_usage($accountname, "", "");
++        }
++    printf "%-15s %9s | %13s %9s (SUs)\n", "Account", "Usage", "Account Limit", "Total Available";
++    printf "%-15s %9s + %13s %15s\n", "-"x15, "-"x9, "-"x13, "-"x23;
++    printf "%-15s %9s | %13s %23s\n", $accountname, fmt_mins_as_hrs($acc_usage{$accountname}), fmt_mins_as_hrs($acc_limits{$accountname}{$accountname}), fmt_mins_as_hrs($acc_limits{$accountname}{$accountname} - $acc_usage{$accountname});
++    printf "%s\n","-"x65;
++        # display formatted output
++        print_results_new(1, 0, 0, defined($opts{s}));
++    printf "%s\n","-"x65;
++    my $realloc_info = get_account_info($accountname);
++    	if ($realloc_info) {
++	    print defined $realloc_info->{realloc_date} ?
++            	"Next reallocation: $realloc_info->{realloc_date}\n" :
++            	"Next reallocation: undef\n";
++    		printf "%s\n","-"x65;
++	} 
++    	else {
++    		print "Next reallocation: No data found.\n";
++    		printf "%s\n","-"x65;
+ 	}
+-
+-	# display formatted output
+-	print_results(1, 0, 0, defined($opts{s}));
+-
++	
+ } elsif ($showallusers && $showallaccs) {
+ 	#####################################################################
+ 	# - Scenario #2 showallusers in every account, not just mine
+ 	# we need to show all users in ALL Accounts
+ 	#####################################################################
+ 
+-	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+-
+ 	# first obtain the full list of users for all accounts; sreport won't report
+ 	# on them if they have no usage
+ 	query_users_and_accounts("", "", "");
+@@ -524,6 +847,7 @@
+ 		query_sreport_user_and_account_usage(join(',', sort(keys (%acc_limits))), "", "");
+ 	} else {
+ 		# SSHARE: get the usage values (for all users in the accounts), for all accounts (all the ones found by sacctmgr above)
++
+ 		query_sshare_user_and_account_usage(join(',', sort(keys (%acc_limits))), "", "");
+ 	}
+ 
+@@ -538,15 +862,13 @@
+ 	# and secondly to dump all users in those accounts
+ 	#####################################################################
+ 
+-	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+-
+ 	###############################################################################
+ 	# sacctmgr #1 -- obtain the usage for this user, and also the list of all of their accounts
+ 	###############################################################################
+ 
+ 	# first obtain the full list of users for all accounts; sreport won't report
+ 	# on them if they have no usage
+-	query_users_and_accounts("", "", 1);
++	query_users_and_accounts($uaccounts, "", 1);
+ 
+ 	if (defined($opts{s})) {
+ 		# SREPORT: get the usage values (for all users in the accounts), for all the accounts of the given user
+@@ -565,10 +887,7 @@
+ 	# show only the balance for $accountname, unformatted
+ 	#####################################################################
+ 
+-	#my $cluster_str = ($clustername ne "") ? "-M $clustername " : "";
+-	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+-
+-	if (!exists($acc_limits{$accountname})) {
++	if (!exists($acc_limits{$accountname}{$accountname})) {
+ 		die "$0: account '$accountname' doesn't exist. Exiting..\n";
+ 	}
+ 
+@@ -580,7 +899,7 @@
+ 	}
+ 
+ 	# this is minutes - we need to convert to hours
+-	printf "%.0f\n", (($acc_limits{$accountname} - $acc_usage{$accountname})/60);
++	printf "%.0f\n", (($acc_limits{$accountname}{$accountname} - $acc_usage{$accountname})/60);
+ 
+ } else {
+ 	#####################################################################
+@@ -590,13 +909,12 @@
+ 	# and secondly to dump all users in those accounts
+ 	#####################################################################
+ 
+-	my $cluster_str = ($clustername ne "") ? "clusters=$clustername " : "";
+-
+ 	###############################################################################
+ 	# sacctmgr #1 -- obtain the usage for this user, and also the list of all of their accounts
+ 	###############################################################################
+ 
+-	query_users_and_accounts("", $thisuser, 1);
++	#query_users_and_accounts("", $thisuser, 1);
++	query_users_and_accounts($uaccounts, $thisuser, 1);
+ 
+ 	if (defined($opts{s})) {
+ 		# SREPORT get the usage values (for just the given user), for all the accounts of the given user
+diff -Naur slurm-bank-1.4.2/src/sbank-deposit slurm-bank-1.4.2.new/src/sbank-deposit
+--- slurm-bank-1.4.2/src/sbank-deposit	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank-deposit	2025-05-27 09:02:10.325869272 -0700
+@@ -47,13 +47,13 @@
+ 	if [ "${FLAGS_time}" -gt "0" ];
+ 	then
+ 		# the account limit - this could be re-worked in a more clever way and check for exitcodes
+-		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpCPUMins account=${FLAGS_account} | head -1 | awk -F'|' '{print $2}')
++		LIMIT=$($SACCTMGR -np list associations cluster=${FLAGS_cluster} format=account,GrpTRESMins account=${FLAGS_account} | head -1 | awk -F'billing=' '{print $2}' | sed 's/|$//')
+ 		debug "${LIMIT}mins is the limit of ${FLAGS_account} on ${FLAGS_cluster}"
+ 
+ 		# new limit is the old limit +/- a delta
+ 		NEW_LIMIT=$((${LIMIT} + (${FLAGS_time} * 60)))
+ 		debug "Updating account with the following (${FLAGS_time}hrs * 60) + ${LIMIT}mins = ${NEW_LIMIT} mins"
+-		$SACCTMGR -i modify account account=${FLAGS_account} set GrpCPUMins=${NEW_LIMIT} where cluster=${FLAGS_cluster}
++		$SACCTMGR -i modify account name=${FLAGS_account} set GrpTRESMins=billing=${NEW_LIMIT} where cluster=${FLAGS_cluster}
+ 	fi
+ }
+ 
+diff -Naur slurm-bank-1.4.2/src/sbank-project slurm-bank-1.4.2.new/src/sbank-project
+--- slurm-bank-1.4.2/src/sbank-project	2022-08-20 15:03:51.000000000 -0700
++++ slurm-bank-1.4.2.new/src/sbank-project	2025-05-27 09:02:10.326869260 -0700
 @@ -40,7 +40,7 @@
  	[ ${FLAGS_account} = 'null' ] && die "${FLAGS_account}" "is not an account, no account specified"
  
