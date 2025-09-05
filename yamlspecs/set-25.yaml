@@ -1,0 +1,5 @@
+!include packages.yaml
+---
+versions: versions-25.yaml
+system_forpython:
+buildpython:

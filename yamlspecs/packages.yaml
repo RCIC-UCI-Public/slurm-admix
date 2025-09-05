@@ -50,3 +50,4 @@ manifest:
   - "{{slurm_created_rpms}}"
 sets:
   - "24"
+  - "25"
